@@ -5,7 +5,7 @@ const env = require('./env');
 
 const caPath = path.resolve(
   __dirname,
-  '../../cert/ca (1).pem'
+  '../../../../LocalLoop1/ca (2).pem'
 );
 
 const sequelize = new Sequelize(
