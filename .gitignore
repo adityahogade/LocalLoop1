@@ -22,3 +22,7 @@
 # IDE
 .vscode/
 .idea/
+
+*.pem
+/backend/cert
+/backend/cert/ca(1).pem
