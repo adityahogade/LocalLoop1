@@ -1,0 +1,24 @@
+# Backend dependencies
+/backend/node_modules/
+
+# Backend environment files
+/backend/.env
+/backend/.env.*
+!/backend/.env.example
+
+# Uploads
+/uploads/*
+!/uploads/.gitkeep
+
+# Logs
+/logs/
+
+# Test coverage
+/coverage/
+
+# OS files
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
