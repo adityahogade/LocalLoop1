@@ -3,8 +3,8 @@ const app = require('./app');
 const env = require('./config/env');
 
 const {
-  testDatabaseConnection,
-  closeDatabaseConnection,
+  connectDatabase,
+  sequelize,
 } = require('./config/database');
 
 const logger = require('./utils/logger');
@@ -21,7 +21,7 @@ const startServer = async () => {
      * Test MySQL connection before starting
      * the HTTP server.
      */
-    await testDatabaseConnection();
+    await connectDatabase();
 
     /*
      * Start Express server.
@@ -53,7 +53,7 @@ const startServer = async () => {
 
       server.close(async () => {
         try {
-          await closeDatabaseConnection();
+          await sequelize.close();
 
           logger.info('Server shutdown completed.');
 

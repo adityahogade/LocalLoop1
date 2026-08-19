@@ -7,10 +7,14 @@ const env = require('./config/env');
 const logger = require('./utils/logger');
 
 const healthRoutes = require('./routes/health.routes');
+const authRoutes = require('./routes/auth.routes');
 
-const notFound = require('./middlewares/notFound');
-const errorHandler = require('./middlewares/errorHandler');
+const notFound = require('./midleware/notFound');
+const errorHandler = require('./midleware/errorHandler');
 
+const userRoutes = require('./routes/user.routes');
+
+const providerRoutes = require("./routes/provider.routes");
 const app = express();
 
 /*
@@ -51,7 +55,7 @@ app.use(
  * Basic protection against excessive requests.
  */
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000,
 
   max: env.nodeEnv === 'production' ? 100 : 1000,
 
@@ -132,11 +136,25 @@ app.use((req, res, next) => {
  */
 app.use('/api/v1/health', healthRoutes);
 
+/**
+ * Authentication API
+ *
+ * POST /api/auth/login
+ */
+app.use('/api/auth', authRoutes);
+
+
+app.use('/api/users', userRoutes);
+
 /*
 |--------------------------------------------------------------------------
 | API 404 Handler
 |--------------------------------------------------------------------------
 */
+
+
+app.use("/api/providers", providerRoutes);
+
 
 app.use(notFound);
 
