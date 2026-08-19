@@ -1,15 +1,8 @@
+const Joi = require("joi");
+
 const validate = (schema) => {
   return (req, res, next) => {
     try {
-      /*
-       * Joi schema can contain:
-       *
-       * {
-       *   body: Joi.object(...),
-       *   params: Joi.object(...),
-       *   query: Joi.object(...)
-       * }
-       */
       const validationTargets = {};
 
       if (schema.body) {
@@ -24,17 +17,19 @@ const validate = (schema) => {
         validationTargets.query = req.query;
       }
 
-      const { error, value } = schema.validate(
+      /*
+      |--------------------------------------------------------------------------
+      | Build Joi schema from validation targets
+      |--------------------------------------------------------------------------
+      */
+
+      const joiSchema = Joi.object(schema);
+
+      const { error, value } = joiSchema.validate(
         validationTargets,
         {
           abortEarly: false,
-
-          // Important:
-          // Reject unexpected fields instead of silently
-          // accepting them.
           allowUnknown: false,
-
-          // Do not silently remove fields.
           stripUnknown: false,
         }
       );
@@ -44,9 +39,11 @@ const validate = (schema) => {
       }
 
       /*
-       * Joi may normalize values.
-       * Put the validated values back into request.
-       */
+      |--------------------------------------------------------------------------
+      | Put validated values back into request
+      |--------------------------------------------------------------------------
+      */
+
       if (value.body !== undefined) {
         req.body = value.body;
       }
@@ -66,4 +63,4 @@ const validate = (schema) => {
   };
 };
 
-module.exports = validate;  
+module.exports = validate;

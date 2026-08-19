@@ -6,12 +6,21 @@ const db = {};
 db.Sequelize = Sequelize;
 db.sequelize = sequelize;
 
+// ======================================================
+// MODELS
+// ======================================================
+
 db.Role = require("./Role")(sequelize, DataTypes);
 db.User = require("./User")(sequelize, DataTypes);
 db.Customer = require("./Customer")(sequelize, DataTypes);
 db.Address = require("./Address")(sequelize, DataTypes);
+
 db.Wallet = require("./Wallet")(sequelize, DataTypes);
-db.WalletTransaction = require("./WalletTransaction")(sequelize, DataTypes);
+db.WalletTransaction = require("./WalletTransaction")(
+  sequelize,
+  DataTypes
+);
+
 db.Provider = require("./Provider")(sequelize, DataTypes);
 db.KycDocument = require("./KycDocument")(sequelize, DataTypes);
 db.ProviderBankAccount = require("./ProviderBankAccount")(
@@ -22,15 +31,26 @@ db.ProviderAvailability = require("./ProviderAvailability")(
   sequelize,
   DataTypes
 );
-db.ProviderExpense = require("./ProviderExpense")(sequelize, DataTypes);
-db.ProviderEarning = require("./ProviderEarning")(sequelize, DataTypes);
+db.ProviderExpense = require("./ProviderExpense")(
+  sequelize,
+  DataTypes
+);
+db.ProviderEarning = require("./ProviderEarning")(
+  sequelize,
+  DataTypes
+);
 db.ProviderSettlement = require("./ProviderSettlement")(
   sequelize,
   DataTypes
 );
+
+// Catalog
 db.Category = require("./Category")(sequelize, DataTypes);
 db.Service = require("./Service")(sequelize, DataTypes);
+db.ServicePlan = require("./ServicePlan")(sequelize, DataTypes);
 db.ServiceArea = require("./ServiceArea")(sequelize, DataTypes);
+
+// Subscriptions
 db.CustomerSubscription = require("./CustomerSubscription")(
   sequelize,
   DataTypes
@@ -47,15 +67,31 @@ db.SubscriptionPayment = require("./SubscriptionPayment")(
   sequelize,
   DataTypes
 );
+
+// Orders
 db.Order = require("./Order")(sequelize, DataTypes);
 db.OrderItem = require("./OrderItem")(sequelize, DataTypes);
+
+// Payments
 db.Payment = require("./Payment")(sequelize, DataTypes);
 db.Refund = require("./Refund")(sequelize, DataTypes);
 db.Invoice = require("./Invoice")(sequelize, DataTypes);
+
+// Coupons
 db.Coupon = require("./Coupon")(sequelize, DataTypes);
-db.CouponUsage = require("./CouponUsage")(sequelize, DataTypes);
+db.CouponUsage = require("./CouponUsage")(
+  sequelize,
+  DataTypes
+);
+
+// Reviews & notifications
 db.Review = require("./Review")(sequelize, DataTypes);
-db.Notification = require("./Notification")(sequelize, DataTypes);
+db.Notification = require("./Notification")(
+  sequelize,
+  DataTypes
+);
+
+// Support
 db.SupportTicket = require("./SupportTicket")(
   sequelize,
   DataTypes
@@ -64,6 +100,8 @@ db.SupportMessage = require("./SupportMessage")(
   sequelize,
   DataTypes
 );
+
+// Admin / system
 db.AuditLog = require("./AuditLog")(sequelize, DataTypes);
 db.CommissionRule = require("./CommissionRule")(
   sequelize,
@@ -73,6 +111,10 @@ db.PlatformSetting = require("./PlatformSetting")(
   sequelize,
   DataTypes
 );
+
+// ======================================================
+// USER / ROLE
+// ======================================================
 
 db.Role.hasMany(db.User, {
   foreignKey: "role_id",
@@ -84,6 +126,10 @@ db.User.belongsTo(db.Role, {
   as: "role",
 });
 
+// ======================================================
+// USER / CUSTOMER
+// ======================================================
+
 db.User.hasOne(db.Customer, {
   foreignKey: "user_id",
   as: "customer",
@@ -93,6 +139,10 @@ db.Customer.belongsTo(db.User, {
   foreignKey: "user_id",
   as: "user",
 });
+
+// ======================================================
+// CUSTOMER / ADDRESS
+// ======================================================
 
 db.Customer.hasMany(db.Address, {
   foreignKey: "customer_id",
@@ -114,7 +164,9 @@ db.Address.hasMany(db.Customer, {
   as: "defaultForCustomers",
 });
 
-
+// ======================================================
+// CUSTOMER / WALLET
+// ======================================================
 
 db.Customer.hasOne(db.Wallet, {
   foreignKey: "customer_id",
@@ -126,6 +178,9 @@ db.Wallet.belongsTo(db.Customer, {
   as: "customer",
 });
 
+// ======================================================
+// WALLET / WALLET TRANSACTIONS
+// ======================================================
 
 db.Wallet.hasMany(db.WalletTransaction, {
   foreignKey: "wallet_id",
@@ -137,6 +192,9 @@ db.WalletTransaction.belongsTo(db.Wallet, {
   as: "wallet",
 });
 
+// ======================================================
+// USER / PROVIDER
+// ======================================================
 
 db.User.hasOne(db.Provider, {
   foreignKey: "user_id",
@@ -148,6 +206,9 @@ db.Provider.belongsTo(db.User, {
   as: "user",
 });
 
+// ======================================================
+// PROVIDER / KYC
+// ======================================================
 
 db.Provider.hasMany(db.KycDocument, {
   foreignKey: "provider_id",
@@ -159,6 +220,9 @@ db.KycDocument.belongsTo(db.Provider, {
   as: "provider",
 });
 
+// ======================================================
+// PROVIDER / BANK ACCOUNT
+// ======================================================
 
 db.Provider.hasOne(db.ProviderBankAccount, {
   foreignKey: "provider_id",
@@ -170,6 +234,9 @@ db.ProviderBankAccount.belongsTo(db.Provider, {
   as: "provider",
 });
 
+// ======================================================
+// PROVIDER / AVAILABILITY
+// ======================================================
 
 db.Provider.hasMany(db.ProviderAvailability, {
   foreignKey: "provider_id",
@@ -181,6 +248,9 @@ db.ProviderAvailability.belongsTo(db.Provider, {
   as: "provider",
 });
 
+// ======================================================
+// PROVIDER / EXPENSE
+// ======================================================
 
 db.Provider.hasMany(db.ProviderExpense, {
   foreignKey: "provider_id",
@@ -192,6 +262,9 @@ db.ProviderExpense.belongsTo(db.Provider, {
   as: "provider",
 });
 
+// ======================================================
+// PROVIDER / EARNING
+// ======================================================
 
 db.Provider.hasMany(db.ProviderEarning, {
   foreignKey: "provider_id",
@@ -203,6 +276,9 @@ db.ProviderEarning.belongsTo(db.Provider, {
   as: "provider",
 });
 
+// ======================================================
+// PROVIDER / SETTLEMENT
+// ======================================================
 
 db.Provider.hasMany(db.ProviderSettlement, {
   foreignKey: "provider_id",
@@ -224,22 +300,9 @@ db.ProviderSettlement.hasMany(db.ProviderEarning, {
   as: "earnings",
 });
 
-
-db.Category.hasMany(db.Service, {
-  foreignKey: "category_id",
-  as: "services",
-});
-
-
-db.Provider.hasMany(db.Service, {
-  foreignKey: "provider_id",
-  as: "services",
-});
-
-db.Service.belongsTo(db.Provider, {
-  foreignKey: "provider_id",
-  as: "provider",
-});
+// ======================================================
+// CATEGORY / SERVICE
+// ======================================================
 
 db.Category.hasMany(db.Service, {
   foreignKey: "category_id",
@@ -251,6 +314,37 @@ db.Service.belongsTo(db.Category, {
   as: "category",
 });
 
+// ======================================================
+// PROVIDER / SERVICE
+// ======================================================
+
+db.Provider.hasMany(db.Service, {
+  foreignKey: "provider_id",
+  as: "services",
+});
+
+db.Service.belongsTo(db.Provider, {
+  foreignKey: "provider_id",
+  as: "provider",
+});
+
+// ======================================================
+// SERVICE / SERVICE PLAN
+// ======================================================
+
+db.Service.hasMany(db.ServicePlan, {
+  foreignKey: "service_id",
+  as: "plans",
+});
+
+db.ServicePlan.belongsTo(db.Service, {
+  foreignKey: "service_id",
+  as: "service",
+});
+
+// ======================================================
+// PROVIDER / SERVICE AREA
+// ======================================================
 
 db.Provider.hasMany(db.ServiceArea, {
   foreignKey: "provider_id",
@@ -262,6 +356,9 @@ db.ServiceArea.belongsTo(db.Provider, {
   as: "provider",
 });
 
+// ======================================================
+// CUSTOMER SUBSCRIPTION
+// ======================================================
 
 db.Customer.hasMany(db.CustomerSubscription, {
   foreignKey: "customer_id",
@@ -313,6 +410,9 @@ db.CustomerSubscription.belongsTo(db.Address, {
   as: "address",
 });
 
+// ======================================================
+// SUBSCRIPTION / DELIVERY
+// ======================================================
 
 db.CustomerSubscription.hasMany(db.SubscriptionDelivery, {
   foreignKey: "subscription_id",
@@ -324,6 +424,9 @@ db.SubscriptionDelivery.belongsTo(db.CustomerSubscription, {
   as: "subscription",
 });
 
+// ======================================================
+// SUBSCRIPTION / SKIPPED DELIVERY
+// ======================================================
 
 db.CustomerSubscription.hasMany(db.SkippedDelivery, {
   foreignKey: "subscription_id",
@@ -335,6 +438,9 @@ db.SkippedDelivery.belongsTo(db.CustomerSubscription, {
   as: "subscription",
 });
 
+// ======================================================
+// SUBSCRIPTION / PAYMENT
+// ======================================================
 
 db.CustomerSubscription.hasMany(db.SubscriptionPayment, {
   foreignKey: "subscription_id",
@@ -346,6 +452,9 @@ db.SubscriptionPayment.belongsTo(db.CustomerSubscription, {
   as: "subscription",
 });
 
+// ======================================================
+// CUSTOMER / ORDER
+// ======================================================
 
 db.Customer.hasMany(db.Order, {
   foreignKey: "customer_id",
@@ -357,6 +466,10 @@ db.Order.belongsTo(db.Customer, {
   as: "customer",
 });
 
+// ======================================================
+// PROVIDER / ORDER
+// ======================================================
+
 db.Provider.hasMany(db.Order, {
   foreignKey: "provider_id",
   as: "orders",
@@ -366,6 +479,10 @@ db.Order.belongsTo(db.Provider, {
   foreignKey: "provider_id",
   as: "provider",
 });
+
+// ======================================================
+// ADDRESS / ORDER
+// ======================================================
 
 db.Address.hasMany(db.Order, {
   foreignKey: "address_id",
@@ -377,6 +494,9 @@ db.Order.belongsTo(db.Address, {
   as: "address",
 });
 
+// ======================================================
+// ORDER / ORDER ITEM
+// ======================================================
 
 db.Order.hasMany(db.OrderItem, {
   foreignKey: "order_id",
@@ -388,6 +508,10 @@ db.OrderItem.belongsTo(db.Order, {
   as: "order",
 });
 
+// ======================================================
+// SERVICE / ORDER ITEM
+// ======================================================
+
 db.Service.hasMany(db.OrderItem, {
   foreignKey: "service_id",
   as: "orderItems",
@@ -398,6 +522,9 @@ db.OrderItem.belongsTo(db.Service, {
   as: "service",
 });
 
+// ======================================================
+// CUSTOMER / PAYMENT
+// ======================================================
 
 db.Customer.hasMany(db.Payment, {
   foreignKey: "customer_id",
@@ -409,6 +536,9 @@ db.Payment.belongsTo(db.Customer, {
   as: "customer",
 });
 
+// ======================================================
+// PAYMENT / REFUND
+// ======================================================
 
 db.Payment.hasMany(db.Refund, {
   foreignKey: "payment_id",
@@ -420,6 +550,9 @@ db.Refund.belongsTo(db.Payment, {
   as: "payment",
 });
 
+// ======================================================
+// CUSTOMER / INVOICE
+// ======================================================
 
 db.Customer.hasMany(db.Invoice, {
   foreignKey: "customer_id",
@@ -431,6 +564,10 @@ db.Invoice.belongsTo(db.Customer, {
   as: "customer",
 });
 
+// ======================================================
+// PROVIDER / INVOICE
+// ======================================================
+
 db.Provider.hasMany(db.Invoice, {
   foreignKey: "provider_id",
   as: "invoices",
@@ -441,6 +578,9 @@ db.Invoice.belongsTo(db.Provider, {
   as: "provider",
 });
 
+// ======================================================
+// CATEGORY / COUPON
+// ======================================================
 
 db.Category.hasMany(db.Coupon, {
   foreignKey: "category_id",
@@ -452,6 +592,9 @@ db.Coupon.belongsTo(db.Category, {
   as: "category",
 });
 
+// ======================================================
+// COUPON / USAGE
+// ======================================================
 
 db.Coupon.hasMany(db.CouponUsage, {
   foreignKey: "coupon_id",
@@ -463,6 +606,10 @@ db.CouponUsage.belongsTo(db.Coupon, {
   as: "coupon",
 });
 
+// ======================================================
+// CUSTOMER / COUPON USAGE
+// ======================================================
+
 db.Customer.hasMany(db.CouponUsage, {
   foreignKey: "customer_id",
   as: "couponUsages",
@@ -472,6 +619,10 @@ db.CouponUsage.belongsTo(db.Customer, {
   foreignKey: "customer_id",
   as: "customer",
 });
+
+// ======================================================
+// ORDER / COUPON USAGE
+// ======================================================
 
 db.Order.hasMany(db.CouponUsage, {
   foreignKey: "order_id",
@@ -483,6 +634,9 @@ db.CouponUsage.belongsTo(db.Order, {
   as: "order",
 });
 
+// ======================================================
+// REVIEWS
+// ======================================================
 
 db.Customer.hasMany(db.Review, {
   foreignKey: "customer_id",
@@ -514,6 +668,9 @@ db.Review.belongsTo(db.Order, {
   as: "order",
 });
 
+// ======================================================
+// NOTIFICATIONS
+// ======================================================
 
 db.User.hasMany(db.Notification, {
   foreignKey: "user_id",
@@ -525,6 +682,9 @@ db.Notification.belongsTo(db.User, {
   as: "user",
 });
 
+// ======================================================
+// SUPPORT TICKETS
+// ======================================================
 
 db.User.hasMany(db.SupportTicket, {
   foreignKey: "user_id",
@@ -536,6 +696,9 @@ db.SupportTicket.belongsTo(db.User, {
   as: "user",
 });
 
+// ======================================================
+// SUPPORT MESSAGES
+// ======================================================
 
 db.SupportTicket.hasMany(db.SupportMessage, {
   foreignKey: "ticket_id",
@@ -557,6 +720,9 @@ db.SupportMessage.belongsTo(db.User, {
   as: "sender",
 });
 
+// ======================================================
+// AUDIT LOG
+// ======================================================
 
 db.User.hasMany(db.AuditLog, {
   foreignKey: "user_id",
@@ -568,6 +734,9 @@ db.AuditLog.belongsTo(db.User, {
   as: "user",
 });
 
+// ======================================================
+// COMMISSION RULES
+// ======================================================
 
 db.Category.hasMany(db.CommissionRule, {
   foreignKey: "category_id",
@@ -589,6 +758,19 @@ db.CommissionRule.belongsTo(db.Service, {
   as: "service",
 });
 
+db.User.hasMany(db.CommissionRule, {
+  foreignKey: "created_by",
+  as: "createdCommissionRules",
+});
+
+db.CommissionRule.belongsTo(db.User, {
+  foreignKey: "created_by",
+  as: "creator",
+});
+
+// ======================================================
+// PLATFORM SETTINGS
+// ======================================================
 
 db.User.hasMany(db.PlatformSetting, {
   foreignKey: "updated_by",
@@ -599,5 +781,9 @@ db.PlatformSetting.belongsTo(db.User, {
   foreignKey: "updated_by",
   as: "updatedByUser",
 });
+
+// ======================================================
+// EXPORT
+// ======================================================
 
 module.exports = db;
