@@ -1,88 +1,85 @@
 const express = require("express");
 
-const router = express.Router();
-
-const controller = require("../controllers/servicePlan.controller");
-
+const bankAccountController = require("../controllers/bankAccount.controller");
 const authenticate = require("../midleware/auth");
 const authorize = require("../midleware/authorize");
 const validate = require("../midleware/validate");
 
 const {
-  createServicePlanSchema,
-  updateServicePlanSchema,
-} = require("../validators/servicePlan.validator");
+  createBankAccountSchema,
+  updateBankAccountSchema,
+} = require("../validators/bankAccount.validator");
+
+const router = express.Router();
 
 /*
 |--------------------------------------------------------------------------
-| Service Plan Routes
+| Provider Bank Account
 |--------------------------------------------------------------------------
 |
-| Provider only
-| role_id = 3
+| All routes:
+|
+| authenticate
+|      ↓
+| authorize(3)
+|      ↓
+| provider ownership
 |
 |--------------------------------------------------------------------------
 */
 
-router.use(authenticate);
-router.use(authorize(3));
-
 /*
 |--------------------------------------------------------------------------
-| Get Service Plans
+| GET /api/providers/bank-account
 |--------------------------------------------------------------------------
-|
-| GET /api/providers/services/:serviceId/plans
-|
 */
 
 router.get(
-  "/:serviceId/plans",
-  controller.listPlans
+  "/",
+  authenticate,
+  authorize(3),
+  bankAccountController.getMyBankAccount
 );
 
 /*
 |--------------------------------------------------------------------------
-| Create Service Plan
+| POST /api/providers/bank-account
 |--------------------------------------------------------------------------
-|
-| POST /api/providers/services/:serviceId/plans
-|
 */
 
 router.post(
-  "/:serviceId/plans",
-  validate(createServicePlanSchema),
-  controller.createPlan
+  "/",
+  authenticate,
+  authorize(3),
+  validate(createBankAccountSchema),
+  bankAccountController.createBankAccount
 );
 
 /*
 |--------------------------------------------------------------------------
-| Update Service Plan
+| PATCH /api/providers/bank-account
 |--------------------------------------------------------------------------
-|
-| PATCH /api/providers/services/:serviceId/plans/:id
-|
 */
 
 router.patch(
-  "/:serviceId/plans/:id",
-  validate(updateServicePlanSchema),
-  controller.updatePlan
+  "/",
+  authenticate,
+  authorize(3),
+  validate(updateBankAccountSchema),
+  bankAccountController.updateBankAccount
 );
 
 /*
 |--------------------------------------------------------------------------
-| Delete Service Plan
+| DELETE /api/providers/bank-account
 |--------------------------------------------------------------------------
-|
-| DELETE /api/providers/services/:serviceId/plans/:id
-|
 */
 
 router.delete(
-  "/:serviceId/plans/:id",
-  controller.deletePlan
+  "/",
+  authenticate,
+  authorize(3),
+  bankAccountController.deleteBankAccount
 );
 
 module.exports = router;
