@@ -11,6 +11,7 @@ const {
   providerIdSchema,
   providerStatusSchema,
   providerKycSchema,
+  updateMyProviderProfileSchema,
 } = require("../validators/provider.validator");
 
 const router = express.Router();
@@ -33,6 +34,43 @@ router.get(
   authenticate,
   authorize(1),
   providerController.getAllProviders
+);
+
+/*
+|--------------------------------------------------------------------------
+| Get My Provider Profile
+|--------------------------------------------------------------------------
+|
+| GET /api/providers/me
+|
+| Provider only
+|
+*/
+
+router.get(
+  "/me",
+  authenticate,
+  authorize(3),
+  providerController.getMyProviderProfile
+);
+
+/*
+|--------------------------------------------------------------------------
+| Update My Provider Profile
+|--------------------------------------------------------------------------
+|
+| PATCH /api/providers/me
+|
+| Provider only
+|
+*/
+
+router.patch(
+  "/me",
+  authenticate,
+  authorize(3),
+  validate(updateMyProviderProfileSchema),
+  providerController.updateMyProviderProfile
 );
 
 /**

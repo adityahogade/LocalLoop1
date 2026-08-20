@@ -365,6 +365,126 @@ const updateProviderKyc = async (
   return getProviderById(providerId);
 };
 
+/*
+|--------------------------------------------------------------------------
+| Get My Provider Profile
+|--------------------------------------------------------------------------
+*/
+
+const getMyProviderProfile = async (userId) => {
+  const [providers] = await sequelize.query(
+    `
+      SELECT
+        p.id,
+        p.user_id,
+        u.full_name,
+        u.email,
+        u.phone,
+        p.business_name,
+        p.business_description,
+        p.logo_url,
+        p.kyc_status,
+        p.kyc_rejection_reason,
+        p.is_active,
+        p.average_rating,
+        p.created_at,
+        p.updated_at
+      FROM providers p
+      INNER JOIN users u
+        ON p.user_id = u.id
+      WHERE p.user_id = :userId
+        AND u.status != 'deleted'
+      LIMIT 1
+    `,
+    {
+      replacements: {
+        userId,
+      },
+    }
+  );
+
+  if (!providers.length) {
+    throw new Error("Provider profile not found");
+  }
+
+  return sanitizeProvider(providers[0]);
+};
+
+/*
+|--------------------------------------------------------------------------
+| Update My Provider Profile
+|--------------------------------------------------------------------------
+*/
+
+const updateMyProviderProfile = async (userId, data) => {
+  const allowedFields = [
+    "business_name",
+    "business_description",
+    "logo_url",
+  ];
+
+  const updates = [];
+  const replacements = {
+    userId,
+  };
+
+  for (const field of allowedFields) {
+    if (data[field] !== undefined) {
+      updates.push(`${field} = :${field}`);
+      replacements[field] = data[field];
+    }
+  }
+
+  if (!updates.length) {
+    throw new Error("No fields to update");
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Verify provider ownership
+  |--------------------------------------------------------------------------
+  */
+
+  const [providers] = await sequelize.query(
+    `
+      SELECT id
+      FROM providers
+      WHERE user_id = :userId
+      LIMIT 1
+    `,
+    {
+      replacements: {
+        userId,
+      },
+    }
+  );
+
+  if (!providers.length) {
+    throw new Error("Provider profile not found");
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | Update
+  |--------------------------------------------------------------------------
+  */
+
+  await sequelize.query(
+    `
+      UPDATE providers
+      SET
+        ${updates.join(", ")},
+        updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = :userId
+    `,
+    {
+      replacements,
+    }
+  );
+
+  return getMyProviderProfile(userId);
+};
+
 module.exports = {
   getAllProviders,
   getProviderById,
@@ -372,4 +492,6 @@ module.exports = {
   updateProvider,
   updateProviderStatus,
   updateProviderKyc,
-}; 
+  getMyProviderProfile,
+  updateMyProviderProfile,
+};
