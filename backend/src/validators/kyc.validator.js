@@ -45,9 +45,21 @@ const kycDocumentIdSchema = {
 |--------------------------------------------------------------------------
 | Review KYC Document
 |--------------------------------------------------------------------------
+|
+| approved:
+| {
+|   "status": "approved"
+| }
+|
+| rejected:
+| {
+|   "status": "rejected",
+|   "rejection_reason": "Document is not clear"
+| }
+|
 */
 
-const reviewKycDocumentSchema = {
+const reviewKycSchema = {
   params: Joi.object({
     id: Joi.number()
       .integer()
@@ -59,11 +71,20 @@ const reviewKycDocumentSchema = {
     status: Joi.string()
       .valid("approved", "rejected")
       .required(),
+
+    rejection_reason: Joi.string()
+      .trim()
+      .max(255)
+      .when("status", {
+        is: "rejected",
+        then: Joi.required(),
+        otherwise: Joi.forbidden(),
+      }),
   }).required(),
 };
 
 module.exports = {
   createKycDocumentSchema,
   kycDocumentIdSchema,
-  reviewKycDocumentSchema,
+  reviewKycSchema,
 };

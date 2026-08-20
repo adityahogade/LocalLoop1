@@ -15,6 +15,10 @@ const errorHandler = require('./midleware/errorHandler');
 const userRoutes = require('./routes/user.routes');
 
 const providerRoutes = require("./routes/provider.routes");
+
+const kycRoutes = require("./routes/kyc.routes");
+const adminKycRoutes = require("./routes/adminKyc.routes");
+
 const app = express();
 
 /*
@@ -152,9 +156,9 @@ app.use('/api/users', userRoutes);
 |--------------------------------------------------------------------------
 */
 
-
+app.use("/api/providers/kyc", kycRoutes);
 app.use("/api/providers", providerRoutes);
-
+app.use("/api/admin/kyc", adminKycRoutes);
 
 app.use(notFound);
 
