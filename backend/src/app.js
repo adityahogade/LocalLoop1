@@ -22,7 +22,7 @@ const adminKycRoutes = require("./routes/adminKyc.routes");
 const servicePlanRoutes = require('./routes/servicePlan.routes');
 const serviceAreaRoutes = require('./routes/serviceArea.routes');
 
-
+const bankAccountRoutes = require("./routes/bankAccount.routes");
 
 const app = express();
 
@@ -160,7 +160,10 @@ app.use('/api/users', userRoutes);
 | API 404 Handler
 |--------------------------------------------------------------------------
 */
-
+app.use(
+  "/api/providers/bank-account",
+  bankAccountRoutes
+);
 app.use("/api/providers/kyc", kycRoutes);
 app.use("/api/providers", providerRoutes);
 app.use("/api/admin/kyc", adminKycRoutes);

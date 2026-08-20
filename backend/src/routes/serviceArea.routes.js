@@ -4,9 +4,9 @@ const router = express.Router();
 
 const controller = require('../controllers/serviceArea.controller');
 
-const authenticate = require('../middlewares/authenticate');
-const authorize = require('../middlewares/authorize');
-const validate = require('../middlewares/validate');
+const authenticate = require("../midleware/auth");
+const authorize = require("../midleware/authorize");
+const validate = require("../midleware/validate");
 
 const {
   createServiceAreaSchema,
@@ -14,7 +14,7 @@ const {
 } = require('../validators/serviceArea.validator');
 
 router.use(authenticate);
-router.use(authorize(['provider']));
+router.use(authorize(3));
 
 router.get(
   '/',
