@@ -131,10 +131,39 @@ const providerKycSchema = {
   }).required(),
 };
 
+/*
+|--------------------------------------------------------------------------
+| My Provider Profile Update
+|--------------------------------------------------------------------------
+*/
+
+const updateMyProviderProfileSchema = {
+  body: Joi.object({
+    business_name: Joi.string()
+      .trim()
+      .min(2)
+      .max(150),
+
+    business_description: Joi.string()
+      .trim()
+      .max(5000)
+      .allow("", null),
+
+    logo_url: Joi.string()
+      .trim()
+      .uri()
+      .max(255)
+      .allow("", null),
+  })
+    .min(1)
+    .required(),
+};
+
 module.exports = {
   createProviderSchema,
   updateProviderSchema,
   providerIdSchema,
   providerStatusSchema,
   providerKycSchema,
+  updateMyProviderProfileSchema,
 };

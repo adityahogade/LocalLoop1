@@ -143,6 +143,57 @@ const updateProviderKyc = async (req, res, next) => {
   }
 };
 
+/*
+|--------------------------------------------------------------------------
+| Get My Provider Profile
+|--------------------------------------------------------------------------
+|
+| GET /api/providers/me
+|
+*/
+
+const getMyProviderProfile = async (req, res, next) => {
+  try {
+    const provider =
+      await providerService.getMyProviderProfile(req.user.id);
+
+    return res.status(200).json({
+      success: true,
+      message: "Provider profile fetched successfully",
+      data: provider,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/*
+|--------------------------------------------------------------------------
+| Update My Provider Profile
+|--------------------------------------------------------------------------
+|
+| PATCH /api/providers/me
+|
+*/
+
+const updateMyProviderProfile = async (req, res, next) => {
+  try {
+    const provider =
+      await providerService.updateMyProviderProfile(
+        req.user.id,
+        req.body
+      );
+
+    return res.status(200).json({
+      success: true,
+      message: "Provider profile updated successfully",
+      data: provider,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllProviders,
   getProviderById,
@@ -150,4 +201,6 @@ module.exports = {
   updateProvider,
   updateProviderStatus,
   updateProviderKyc,
+  getMyProviderProfile,
+updateMyProviderProfile,
 };
