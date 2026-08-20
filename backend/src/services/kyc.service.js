@@ -5,7 +5,6 @@ const { sequelize } = require("../config/database");
 | Submit KYC Document
 |--------------------------------------------------------------------------
 */
-
 const submitDocument = async (providerId, data) => {
   const {
     document_type,
@@ -14,7 +13,7 @@ const submitDocument = async (providerId, data) => {
 
   /*
   |--------------------------------------------------------------------------
-  | Verify Provider Exists
+  | Verify Provider
   |--------------------------------------------------------------------------
   */
 
@@ -44,21 +43,24 @@ const submitDocument = async (providerId, data) => {
 
   /*
   |--------------------------------------------------------------------------
-  | Prevent documents for deleted/inactive provider
+  | Prevent duplicate submission after approval
   |--------------------------------------------------------------------------
   */
 
-  if (provider.kyc_status === "approved" && provider.is_active) {
+  if (
+    provider.kyc_status === "approved" &&
+    Number(provider.is_active) === 1
+  ) {
     throw new Error("Provider KYC is already approved");
   }
 
   /*
   |--------------------------------------------------------------------------
-  | Create KYC Document
+  | Insert KYC Document
   |--------------------------------------------------------------------------
   */
 
-  const [result] = await sequelize.query(
+  await sequelize.query(
     `
       INSERT INTO kyc_documents
       (
@@ -86,14 +88,13 @@ const submitDocument = async (providerId, data) => {
     }
   );
 
-  if (!result || !result.insertId) {
-    throw new Error("KYC document creation failed");
-  }
-
   /*
   |--------------------------------------------------------------------------
-  | Return Created Document
+  | Get newly created document
   |--------------------------------------------------------------------------
+  |
+  | Do not depend on Sequelize insertId here.
+  |
   */
 
   const [documents] = await sequelize.query(
@@ -108,18 +109,25 @@ const submitDocument = async (providerId, data) => {
         reviewed_at,
         created_at
       FROM kyc_documents
-      WHERE id = :documentId
+      WHERE provider_id = :providerId
+        AND document_type = :documentType
+        AND file_url = :fileUrl
+      ORDER BY id DESC
       LIMIT 1
     `,
     {
       replacements: {
-        documentId: Number(result.insertId),
+        providerId,
+        documentType: document_type,
+        fileUrl: file_url,
       },
     }
   );
 
   if (!documents.length) {
-    throw new Error("KYC document could not be retrieved");
+    throw new Error(
+      "KYC document was inserted but could not be retrieved"
+    );
   }
 
   return documents[0];
