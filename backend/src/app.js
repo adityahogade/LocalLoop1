@@ -19,6 +19,11 @@ const providerRoutes = require("./routes/provider.routes");
 const kycRoutes = require("./routes/kyc.routes");
 const adminKycRoutes = require("./routes/adminKyc.routes");
 
+const servicePlanRoutes = require('./routes/servicePlan.routes');
+const serviceAreaRoutes = require('./routes/serviceArea.routes');
+
+
+
 const app = express();
 
 /*
@@ -159,6 +164,16 @@ app.use('/api/users', userRoutes);
 app.use("/api/providers/kyc", kycRoutes);
 app.use("/api/providers", providerRoutes);
 app.use("/api/admin/kyc", adminKycRoutes);
+
+app.use(
+  '/api/v1/provider/services',
+  servicePlanRoutes
+);
+
+app.use(
+  '/api/v1/provider/service-areas',
+  serviceAreaRoutes
+);
 
 app.use(notFound);
 
