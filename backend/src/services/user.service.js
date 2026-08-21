@@ -14,11 +14,17 @@ const sanitizeUser = (user) => {
     return null;
   }
 
-  const {
-    password_hash,
-    refresh_token_hash,
-    ...safeUser
-  } = user;
+  const sensitiveFields = new Set([
+    "password_hash",
+    "refresh_token_hash",
+    "refresh_token_expires_at",
+    "password_reset_token_hash",
+    "password_reset_expires_at",
+  ]);
+
+  const safeUser = Object.fromEntries(
+    Object.entries(user).filter(([key]) => !sensitiveFields.has(key))
+  );
 
   return safeUser;
 };

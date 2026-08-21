@@ -3,7 +3,15 @@ const AppError = require("../utils/AppError");
 
 const getProfile = async (userId) => {
   const user = await User.findByPk(userId, {
-    attributes: { exclude: ["password_hash", "refresh_token_hash"] },
+    attributes: {
+      exclude: [
+        "password_hash",
+        "refresh_token_hash",
+        "refresh_token_expires_at",
+        "password_reset_token_hash",
+        "password_reset_expires_at",
+      ],
+    },
     include: [{ model: Customer, as: "customer", include: [{ model: Address, as: "addresses" }] }],
   });
   if (!user || !user.customer) throw new AppError("Customer profile not found", 404, "CUSTOMER_NOT_FOUND");
