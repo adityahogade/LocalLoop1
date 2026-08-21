@@ -3,6 +3,7 @@ const express = require("express");
 const authController = require("../controllers/auth.controller");
 const authenticate = require("../midleware/auth");
 const validate = require("../midleware/validate");
+const Joi = require("joi");
 
 const {
   registerSchema,
@@ -74,5 +75,9 @@ router.get(
   authenticate,
   authController.getMe
 );
+router.post("/refresh", validate(Joi.object({ refresh_token: Joi.string().min(40).required() })), authController.refresh);
+router.post("/logout", authenticate, authController.logout);
+router.post("/forgot-password", validate(Joi.object({ email: Joi.string().email().required() })), authController.forgotPassword);
+router.post("/reset-password", validate(Joi.object({ token: Joi.string().min(40).required(), password: Joi.string().min(8).max(72).required() })), authController.resetPassword);
 
 module.exports = router;

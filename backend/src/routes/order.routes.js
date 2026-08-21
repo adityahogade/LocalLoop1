@@ -1,0 +1,12 @@
+const express = require("express");
+const controller = require("../controllers/order.controller");
+const authenticate = require("../midleware/auth");
+const authorize = require("../midleware/authorize");
+const validate = require("../midleware/validate");
+const schemas = require("../validators/order.validator");
+const router = express.Router();
+router.get("/", authenticate, authorize(2, 3), controller.list);
+router.post("/", authenticate, authorize(2), validate(schemas.createOrder), controller.create);
+router.get("/:id", authenticate, authorize(2, 3), validate(schemas.orderParams), controller.get);
+router.patch("/:id/status", authenticate, authorize(2, 3), validate({ ...schemas.orderParams, body: schemas.status }), controller.status);
+module.exports = router;

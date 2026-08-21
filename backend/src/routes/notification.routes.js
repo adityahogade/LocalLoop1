@@ -1,0 +1,12 @@
+const express = require("express");
+const controller = require("../controllers/notification.controller");
+const authenticate = require("../midleware/auth");
+const validate = require("../midleware/validate");
+const schemas = require("../validators/notification.validator");
+const router = express.Router();
+router.use(authenticate);
+router.get("/", controller.list);
+router.get("/unread-count", controller.unread);
+router.patch("/read-all", controller.readAll);
+router.patch("/:id/read", validate(schemas.params), controller.read);
+module.exports = router;

@@ -18,11 +18,6 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
       },
 
-      service_name: {
-        type: DataTypes.STRING(150),
-        allowNull: false,
-      },
-
       quantity: {
         type: DataTypes.DECIMAL(6, 2),
         allowNull: false,
@@ -33,20 +28,14 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
       },
 
-      total_price: {
+      line_total: {
         type: DataTypes.DECIMAL(12, 2),
         allowNull: false,
-      },
-
-      attributes_json: {
-        type: DataTypes.JSON,
-        allowNull: true,
       },
     },
     {
       tableName: "order_items",
-      timestamps: true,
-      createdAt: "created_at",
+      timestamps: false,
       updatedAt: false,
       indexes: [
         {

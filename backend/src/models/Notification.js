@@ -23,13 +23,18 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
       },
 
-      message: {
+      body: {
         type: DataTypes.TEXT,
         allowNull: false,
       },
 
-      data_json: {
-        type: DataTypes.JSON,
+      reference_type: {
+        type: DataTypes.STRING(50),
+        allowNull: true,
+      },
+
+      reference_id: {
+        type: DataTypes.BIGINT.UNSIGNED,
         allowNull: true,
       },
 
@@ -39,16 +44,12 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: false,
       },
 
-      read_at: {
-        type: DataTypes.DATE,
-        allowNull: true,
-      },
     },
     {
       tableName: "notifications",
       timestamps: true,
       createdAt: "created_at",
-      updatedAt: "updated_at",
+      updatedAt: false,
       indexes: [
         {
           fields: ["user_id", "is_read"],

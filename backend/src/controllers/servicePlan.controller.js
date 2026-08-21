@@ -1,8 +1,18 @@
-const servicePlanService = require('../services/servicePlan.service');
+const servicePlanService = require("../services/servicePlan.service");
+
+const getProviderId = async (req) => {
+  return servicePlanService.getProviderIdByUserId(req.user.id);
+};
+
+/*
+|--------------------------------------------------------------------------
+| GET /api/v1/provider/services/:serviceId/plans
+|--------------------------------------------------------------------------
+*/
 
 const listPlans = async (req, res, next) => {
   try {
-    const providerId = req.user.provider_id;
+    const providerId = await getProviderId(req);
     const { serviceId } = req.params;
 
     const plans = await servicePlanService.listPlans(
@@ -10,8 +20,9 @@ const listPlans = async (req, res, next) => {
       serviceId
     );
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
+      message: "Service plans fetched successfully",
       data: plans,
     });
   } catch (error) {
@@ -19,9 +30,15 @@ const listPlans = async (req, res, next) => {
   }
 };
 
+/*
+|--------------------------------------------------------------------------
+| POST /api/v1/provider/services/:serviceId/plans
+|--------------------------------------------------------------------------
+*/
+
 const createPlan = async (req, res, next) => {
   try {
-    const providerId = req.user.provider_id;
+    const providerId = await getProviderId(req);
     const { serviceId } = req.params;
 
     const plan = await servicePlanService.createPlan(
@@ -30,8 +47,9 @@ const createPlan = async (req, res, next) => {
       req.body
     );
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
+      message: "Service plan created successfully",
       data: plan,
     });
   } catch (error) {
@@ -39,9 +57,15 @@ const createPlan = async (req, res, next) => {
   }
 };
 
+/*
+|--------------------------------------------------------------------------
+| PATCH /api/v1/provider/services/:serviceId/plans/:id
+|--------------------------------------------------------------------------
+*/
+
 const updatePlan = async (req, res, next) => {
   try {
-    const providerId = req.user.provider_id;
+    const providerId = await getProviderId(req);
     const { serviceId, id } = req.params;
 
     const plan = await servicePlanService.updatePlan(
@@ -51,8 +75,9 @@ const updatePlan = async (req, res, next) => {
       req.body
     );
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
+      message: "Service plan updated successfully",
       data: plan,
     });
   } catch (error) {
@@ -60,9 +85,15 @@ const updatePlan = async (req, res, next) => {
   }
 };
 
+/*
+|--------------------------------------------------------------------------
+| DELETE /api/v1/provider/services/:serviceId/plans/:id
+|--------------------------------------------------------------------------
+*/
+
 const deletePlan = async (req, res, next) => {
   try {
-    const providerId = req.user.provider_id;
+    const providerId = await getProviderId(req);
     const { serviceId, id } = req.params;
 
     const result = await servicePlanService.deletePlan(
@@ -71,8 +102,9 @@ const deletePlan = async (req, res, next) => {
       id
     );
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
+      message: "Service plan deleted successfully",
       data: result,
     });
   } catch (error) {

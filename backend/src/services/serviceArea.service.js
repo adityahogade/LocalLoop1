@@ -10,9 +10,9 @@ const checkProvider = async (providerId) => {
 
   if (!provider) {
     throw new AppError(
-      'PROVIDER_NOT_FOUND',
       'Provider not found',
-      404
+      404,
+      'PROVIDER_NOT_FOUND'
     );
   }
 
@@ -42,9 +42,9 @@ const createArea = async (providerId, data) => {
 
   if (existing) {
     throw new AppError(
-      'SERVICE_AREA_EXISTS',
       'This pincode is already configured',
-      409
+      409,
+      'SERVICE_AREA_EXISTS'
     );
   }
 
@@ -73,9 +73,9 @@ const updateArea = async (
 
   if (!area) {
     throw new AppError(
-      'SERVICE_AREA_NOT_FOUND',
       'Service area not found',
-      404
+      404,
+      'SERVICE_AREA_NOT_FOUND'
     );
   }
 
@@ -92,9 +92,9 @@ const updateArea = async (
 
     if (duplicate) {
       throw new AppError(
-        'SERVICE_AREA_EXISTS',
         'This pincode is already configured',
-        409
+        409,
+        'SERVICE_AREA_EXISTS'
       );
     }
   }
@@ -119,9 +119,9 @@ const deleteArea = async (
 
   if (!area) {
     throw new AppError(
-      'SERVICE_AREA_NOT_FOUND',
       'Service area not found',
-      404
+      404,
+      'SERVICE_AREA_NOT_FOUND'
     );
   }
 

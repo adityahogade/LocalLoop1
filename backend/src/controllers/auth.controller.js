@@ -110,9 +110,17 @@ const providerRegister = async (req, res, next) => {
     next(error);
   }
 };
+const refresh = async (req, res, next) => { try { res.json({ success: true, data: await authService.refresh(req.body.refresh_token) }); } catch (error) { next(error); } };
+const logout = async (req, res, next) => { try { await authService.logout(req.user.id); res.status(204).send(); } catch (error) { next(error); } };
+const forgotPassword = async (req, res, next) => { try { res.json({ success: true, data: await authService.requestPasswordReset(req.body.email) }); } catch (error) { next(error); } };
+const resetPassword = async (req, res, next) => { try { await authService.resetPassword(req.body.token, req.body.password); res.json({ success: true, message: "Password reset successful" }); } catch (error) { next(error); } };
 module.exports = {
   register,
   providerRegister,
   login,
   getMe,
+  refresh,
+  logout,
+  forgotPassword,
+  resetPassword,
 };

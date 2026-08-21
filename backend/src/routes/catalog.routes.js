@@ -1,0 +1,10 @@
+const express = require("express");
+const controller = require("../controllers/catalog.controller");
+const validate = require("../midleware/validate");
+const schemas = require("../validators/catalog.validator");
+const router = express.Router();
+router.get("/services", validate(schemas.query), controller.services);
+router.get("/services/:id", validate(schemas.params), controller.getService);
+router.get("/categories", controller.categories);
+router.get("/providers", controller.providers);
+module.exports = router;

@@ -3,6 +3,66 @@ const Joi = require("joi");
 const validate = (schema) => {
   return (req, res, next) => {
     try {
+      /*
+      |--------------------------------------------------------------------------
+      | Case 1: Direct Joi schema
+      |--------------------------------------------------------------------------
+      |
+      | Example:
+      |
+      | validate(
+      |   Joi.object({
+      |     name: Joi.string().required()
+      |   })
+      | )
+      |
+      | In this case, validate req.body directly.
+      |
+      |--------------------------------------------------------------------------
+      */
+
+      if (Joi.isSchema(schema)) {
+        const { error, value } = schema.validate(req.body, {
+          abortEarly: false,
+          allowUnknown: false,
+          stripUnknown: false,
+        });
+
+        if (error) {
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: "VALIDATION_ERROR",
+              message: "Request validation failed",
+              details: error.details.map((detail) => ({
+                field: detail.path.join("."),
+                message: detail.message,
+              })),
+            },
+          });
+        }
+
+        req.body = value;
+
+        return next();
+      }
+
+      /*
+      |--------------------------------------------------------------------------
+      | Case 2: Structured validation schema
+      |--------------------------------------------------------------------------
+      |
+      | Example:
+      |
+      | {
+      |   body: Joi.object(...),
+      |   params: Joi.object(...),
+      |   query: Joi.object(...)
+      | }
+      |
+      |--------------------------------------------------------------------------
+      */
+
       const validationTargets = {};
 
       if (schema.body) {
@@ -19,7 +79,7 @@ const validate = (schema) => {
 
       /*
       |--------------------------------------------------------------------------
-      | Build Joi schema from validation targets
+      | Build Joi schema
       |--------------------------------------------------------------------------
       */
 
@@ -34,8 +94,24 @@ const validate = (schema) => {
         }
       );
 
+      /*
+      |--------------------------------------------------------------------------
+      | Validation Error
+      |--------------------------------------------------------------------------
+      */
+
       if (error) {
-        return next(error);
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "Request validation failed",
+            details: error.details.map((detail) => ({
+              field: detail.path.join("."),
+              message: detail.message,
+            })),
+          },
+        });
       }
 
       /*

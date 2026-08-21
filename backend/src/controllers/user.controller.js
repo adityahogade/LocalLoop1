@@ -182,6 +182,7 @@ const updateUserStatus = async (req, res, next) => {
     }
 
     const user = await userService.updateUserStatus(
+      req.user.id,
       userId,
       status
     );

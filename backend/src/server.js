@@ -8,6 +8,7 @@ const {
 } = require('./config/database');
 
 const logger = require('./utils/logger');
+const scheduler = require('./jobs/scheduler');
 
 /*
 |--------------------------------------------------------------------------
@@ -27,6 +28,7 @@ const startServer = async () => {
      * Start Express server.
      */
     const server = app.listen(env.port, () => {
+      scheduler.start();
       logger.info('ServiceHub backend started', {
         environment: env.nodeEnv,
         port: env.port,

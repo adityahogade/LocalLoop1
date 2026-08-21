@@ -1,0 +1,12 @@
+const service = require("../services/subscription.service");
+const create = async (req, res, next) => { try { res.status(201).json({ success: true, data: await service.create(req.user.id, req.body) }); } catch (error) { next(error); } };
+const list = async (req, res, next) => { try { res.json({ success: true, data: await service.list(req.user.id) }); } catch (error) { next(error); } };
+const get = async (req, res, next) => { try { res.json({ success: true, data: await service.getOwned(req.user.id, req.params.id) }); } catch (error) { next(error); } };
+const update = async (req, res, next) => { try { res.json({ success: true, data: await service.update(req.user.id, req.params.id, req.body) }); } catch (error) { next(error); } };
+const deliveries = async (req, res, next) => { try { res.json({ success: true, data: await service.deliveries(req.user.id, req.params.id) }); } catch (error) { next(error); } };
+const skip = async (req, res, next) => { try { res.status(201).json({ success: true, data: await service.skip(req.user.id, req.params.id, req.body) }); } catch (error) { next(error); } };
+const transition = (status) => async (req, res, next) => { try { res.json({ success: true, data: await service.update(req.user.id, req.params.id, { status }) }); } catch (error) { next(error); } };
+const vacation = async (req, res, next) => { try { res.json({ success: true, data: await service.update(req.user.id, req.params.id, { status: "vacation", ...req.body }) }); } catch (error) { next(error); } };
+const calendar = async (req, res, next) => { try { res.json({ success: true, data: await service.calendar(req.user.id, req.params.id, req.query.from, req.query.to) }); } catch (error) { next(error); } };
+const renew = async (req, res, next) => { try { res.status(201).json({ success: true, data: await service.renew(req.user.id, req.params.id) }); } catch (error) { next(error); } };
+module.exports = { create, list, get, update, deliveries, skip, pause: transition("paused"), resume: transition("active"), cancel: transition("cancelled"), vacation, calendar, renew };

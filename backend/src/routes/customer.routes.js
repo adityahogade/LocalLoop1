@@ -1,0 +1,12 @@
+const express = require("express");
+const controller = require("../controllers/customer.controller");
+const authenticate = require("../midleware/auth");
+const authorize = require("../midleware/authorize");
+const validate = require("../midleware/validate");
+const schemas = require("../validators/customer.validator");
+const router = express.Router();
+router.use(authenticate, authorize(2));
+router.get("/me", controller.get);
+router.put("/me", validate(schemas.update), controller.update);
+router.patch("/me", validate(schemas.update), controller.update);
+module.exports = router;

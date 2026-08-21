@@ -4,6 +4,7 @@ const kycController = require("../controllers/kyc.controller");
 const authenticate = require("../midleware/auth");
 const authorize = require("../midleware/authorize");
 const validate = require("../midleware/validate");
+const { upload } = require("../midleware/kycUpload");
 
 const {
   createKycDocumentSchema,
@@ -36,6 +37,7 @@ router.post(
   "/",
   authenticate,
   authorize(3),
+  upload.single("document"),
   validate(createKycDocumentSchema),
   kycController.submitKyc
 );
