@@ -3,10 +3,22 @@ const fs = require('fs');
 const path = require('path');
 const env = require('./env');
 
-const caPath = path.resolve(
-  __dirname,
-  '../../../../LocalLoop1/ca (2).pem'
-);
+const configuredCaPath = process.env.DB_SSL_CA;
+const caPath = configuredCaPath
+  ? path.resolve(configuredCaPath)
+  : null;
+
+const dialectOptions = env.database.ssl
+  ? {
+      ssl: {
+        require: true,
+        rejectUnauthorized: true,
+        ...(caPath && fs.existsSync(caPath)
+          ? { ca: fs.readFileSync(caPath) }
+          : {}),
+      },
+    }
+  : {};
 
 const sequelize = new Sequelize(
   process.env.DB_NAME,
@@ -17,13 +29,7 @@ const sequelize = new Sequelize(
     port: Number(process.env.DB_PORT),
     dialect: 'mysql',
 
-    dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: true,
-        ca: fs.readFileSync(caPath),
-      },
-    },
+    dialectOptions,
 
     pool: {
       max: 10,

@@ -29,11 +29,6 @@ module.exports = (sequelize, DataTypes) => {
         unique: true,
       },
 
-      type: {
-        type: DataTypes.ENUM("cleaning", "water"),
-        allowNull: false,
-      },
-
       status: {
         type: DataTypes.ENUM(
           "pending",
@@ -57,12 +52,6 @@ module.exports = (sequelize, DataTypes) => {
         defaultValue: 0.0,
       },
 
-      tax_amount: {
-        type: DataTypes.DECIMAL(12, 2),
-        allowNull: false,
-        defaultValue: 0.0,
-      },
-
       total_amount: {
         type: DataTypes.DECIMAL(12, 2),
         allowNull: false,
@@ -73,13 +62,28 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
       },
 
-      scheduled_time: {
-        type: DataTypes.TIME,
+      category_id: {
+        type: DataTypes.BIGINT.UNSIGNED,
+        allowNull: false,
+      },
+
+      scheduled_time_slot: {
+        type: DataTypes.STRING(30),
         allowNull: true,
       },
 
-      notes: {
-        type: DataTypes.TEXT,
+      booking_details_json: {
+        type: DataTypes.JSON,
+        allowNull: true,
+      },
+
+      payment_id: {
+        type: DataTypes.BIGINT.UNSIGNED,
+        allowNull: true,
+      },
+
+      cancelled_reason: {
+        type: DataTypes.STRING(255),
         allowNull: true,
       },
     },
@@ -90,7 +94,7 @@ module.exports = (sequelize, DataTypes) => {
       updatedAt: "updated_at",
       indexes: [
         {
-          fields: ["customer_id", "created_at"],
+          fields: ["customer_id", "status"],
         },
         {
           fields: ["provider_id", "status"],

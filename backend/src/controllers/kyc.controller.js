@@ -1,5 +1,6 @@
 const { sequelize } = require("../config/database");
 const kycService = require("../services/kyc.service");
+const fs = require("fs");
 
 /*
 |--------------------------------------------------------------------------
@@ -42,9 +43,10 @@ const submitKyc = async (req, res, next) => {
   try {
     const providerId = await getProviderId(req.user.id);
 
+    if (!req.file) return res.status(400).json({ success: false, error: { code: "KYC_FILE_REQUIRED", message: "KYC file is required" } });
     const result = await kycService.submitDocument(
       providerId,
-      req.body
+      { ...req.body, file: req.file }
     );
 
     return res.status(201).json({
@@ -53,6 +55,7 @@ const submitKyc = async (req, res, next) => {
       data: result,
     });
   } catch (error) {
+    if (req.file?.path) await fs.promises.unlink(req.file.path).catch(() => {});
     next(error);
   }
 };

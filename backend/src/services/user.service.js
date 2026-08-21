@@ -1,4 +1,6 @@
 const { sequelize } = require("../config/database");
+const { AuditLog } = require("../models");
+const AppError = require("../utils/AppError");
 const { hashPassword } = require("../utils/password");
 
 /*
@@ -286,7 +288,7 @@ const updateUser = async (userId, data) => {
 |--------------------------------------------------------------------------
 */
 
-const updateUserStatus = async (userId, status) => {
+const updateUserStatus = async (adminUserId, userId, status) => {
   const allowedStatuses = [
     "active",
     "suspended",
@@ -297,6 +299,7 @@ const updateUserStatus = async (userId, status) => {
     throw new Error("Invalid user status");
   }
 
+  const previous = await getUserById(userId);
   await sequelize.query(
     `
       UPDATE users
@@ -312,7 +315,9 @@ const updateUserStatus = async (userId, status) => {
     }
   );
 
-  return getUserById(userId);
+  const updated = await getUserById(userId);
+  await AuditLog.create({ user_id: adminUserId, action: "user.status_updated", entity_type: "user", entity_id: updated.id, old_values_json: { status: previous.status }, new_values_json: { status: updated.status } });
+  return updated;
 };
 
 /*
@@ -326,7 +331,7 @@ const updateUserStatus = async (userId, status) => {
 */
 
 const deleteUser = async (userId) => {
-  await sequelize.query(
+  const [result] = await sequelize.query(
     `
       UPDATE users
       SET status = 'deleted',
@@ -339,6 +344,10 @@ const deleteUser = async (userId) => {
       },
     }
   );
+
+  if (!result.affectedRows) {
+    throw new AppError("User not found", 404, "USER_NOT_FOUND");
+  }
 
   return {
     message: "User deleted successfully",

@@ -18,6 +18,17 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
       },
 
+      reference_type: {
+        type: DataTypes.STRING(50),
+        allowNull: false,
+        defaultValue: "order",
+      },
+
+      reference_id: {
+        type: DataTypes.BIGINT.UNSIGNED,
+        allowNull: false,
+      },
+
       order_id: {
         type: DataTypes.BIGINT.UNSIGNED,
         allowNull: false,
@@ -39,6 +50,9 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: true,
       },
+      provider_reply: { type: DataTypes.TEXT, allowNull: true },
+      provider_replied_at: { type: DataTypes.DATE, allowNull: true },
+      moderation_status: { type: DataTypes.ENUM("visible", "hidden"), allowNull: false, defaultValue: "visible" },
     },
     {
       tableName: "reviews",

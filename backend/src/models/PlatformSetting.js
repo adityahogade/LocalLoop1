@@ -12,16 +12,13 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(100),
         allowNull: false,
         unique: true,
+        field: "key",
       },
 
       setting_value: {
         type: DataTypes.TEXT,
         allowNull: false,
-      },
-
-      description: {
-        type: DataTypes.STRING(255),
-        allowNull: true,
+        field: "value",
       },
 
       updated_by: {
@@ -32,7 +29,7 @@ module.exports = (sequelize, DataTypes) => {
     {
       tableName: "platform_settings",
       timestamps: true,
-      createdAt: "created_at",
+      createdAt: false,
       updatedAt: "updated_at",
       indexes: [
         {

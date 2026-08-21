@@ -1,0 +1,13 @@
+const express = require("express");
+const controller = require("../controllers/payment.controller");
+const authenticate = require("../midleware/auth");
+const authorize = require("../midleware/authorize");
+const validate = require("../midleware/validate");
+const schemas = require("../validators/payment.validator");
+const router = express.Router();
+router.post("/webhook", controller.webhook);
+router.use(authenticate, authorize(2));
+router.post("/orders", validate(schemas.createPayment), controller.create);
+router.post("/verify", validate(schemas.verifyPayment), controller.verify);
+router.post("/:paymentId/refund", validate({ ...schemas.paymentParams, body: schemas.refund }), controller.refund);
+module.exports = router;

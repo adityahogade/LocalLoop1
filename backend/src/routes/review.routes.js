@@ -1,0 +1,12 @@
+const express = require("express");
+const controller = require("../controllers/review.controller");
+const authenticate = require("../midleware/auth");
+const authorize = require("../midleware/authorize");
+const validate = require("../midleware/validate");
+const schemas = require("../validators/review.validator");
+const router = express.Router();
+router.get("/:providerId", authenticate, validate(schemas.providerParams), controller.list);
+router.post("/", authenticate, authorize(2), validate(schemas.createReview), controller.create);
+router.post("/:id/reply", authenticate, authorize(3), validate({ ...schemas.params, body: schemas.reply }), controller.reply);
+router.patch("/:id/moderation", authenticate, authorize(1), validate({ ...schemas.params, body: schemas.moderation }), controller.moderate);
+module.exports = router;

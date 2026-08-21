@@ -18,11 +18,6 @@ const createKycDocumentSchema = {
       )
       .required(),
 
-    file_url: Joi.string()
-      .trim()
-      .uri()
-      .max(255)
-      .required(),
   }).required(),
 };
 

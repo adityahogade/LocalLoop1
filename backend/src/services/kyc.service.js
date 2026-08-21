@@ -1,4 +1,6 @@
 const { sequelize } = require("../config/database");
+const { hasValidSignature } = require("../midleware/kycUpload");
+const { Notification, AuditLog } = require("../models");
 
 /*
 |--------------------------------------------------------------------------
@@ -8,8 +10,9 @@ const { sequelize } = require("../config/database");
 const submitDocument = async (providerId, data) => {
   const {
     document_type,
-    file_url,
+    file,
   } = data;
+  if (!file || !(await hasValidSignature(file))) throw new Error("KYC file content is invalid");
 
   /*
   |--------------------------------------------------------------------------
@@ -83,7 +86,7 @@ const submitDocument = async (providerId, data) => {
       replacements: {
         providerId,
         documentType: document_type,
-        fileUrl: file_url,
+        fileUrl: `private-uploads/kyc/${file.filename}`,
       },
     }
   );
@@ -119,7 +122,7 @@ const submitDocument = async (providerId, data) => {
       replacements: {
         providerId,
         documentType: document_type,
-        fileUrl: file_url,
+        fileUrl: `private-uploads/kyc/${file.filename}`,
       },
     }
   );
@@ -325,6 +328,30 @@ const reviewDocument = async (
       }
     );
   }
+
+  const [providers] = await sequelize.query(
+    "SELECT user_id FROM providers WHERE id = :providerId LIMIT 1",
+    { replacements: { providerId: document.provider_id } }
+  );
+  const userId = providers[0]?.user_id;
+  if (userId) {
+    await Notification.create({
+      user_id: userId,
+      type: status === "approved" ? "kyc_approved" : "kyc_rejected",
+      title: status === "approved" ? "KYC approved" : "KYC rejected",
+      body: status === "approved" ? "Your KYC verification has been approved." : "Your KYC verification was rejected.",
+      reference_type: "kyc_document",
+      reference_id: document.id,
+    });
+  }
+  await AuditLog.create({
+    user_id: adminUserId,
+    action: `kyc.${status}`,
+    entity_type: "kyc_document",
+    entity_id: document.id,
+    old_values_json: { status: document.status },
+    new_values_json: { status },
+  });
 
   return getDocumentById(documentId);
 };

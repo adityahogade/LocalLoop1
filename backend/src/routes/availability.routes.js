@@ -1,0 +1,15 @@
+const express = require("express");
+const Joi = require("joi");
+const controller = require("../controllers/availability.controller");
+const authenticate = require("../midleware/auth");
+const authorize = require("../midleware/authorize");
+const validate = require("../midleware/validate");
+const schemas = require("../validators/availability.validator");
+const router = express.Router();
+const dateQuery = { query: Joi.object({ date: Joi.date().iso().required() }) };
+router.get("/availability", authenticate, authorize(3), controller.get);
+router.post("/availability", authenticate, authorize(3), validate(schemas.availability), controller.create);
+router.patch("/availability/:id", authenticate, authorize(3), validate({ ...schemas.availabilityParams, body: schemas.availabilityUpdate }), controller.update);
+router.delete("/availability/:id", authenticate, authorize(3), validate(schemas.availabilityParams), controller.remove);
+router.get("/:providerId/availability", authenticate, authorize(2), validate({ ...schemas.providerParams, ...dateQuery }), controller.slots);
+module.exports = router;

@@ -38,27 +38,25 @@ module.exports = (sequelize, DataTypes) => {
       valid_from: {
         type: DataTypes.DATE,
         allowNull: false,
+        field: "start_date",
       },
 
       valid_until: {
         type: DataTypes.DATE,
         allowNull: false,
+        field: "end_date",
       },
 
       usage_limit: {
         type: DataTypes.INTEGER.UNSIGNED,
         allowNull: true,
-      },
-
-      usage_count: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        allowNull: false,
-        defaultValue: 0,
+        field: "usage_limit_total",
       },
 
       per_customer_limit: {
         type: DataTypes.INTEGER.UNSIGNED,
         allowNull: true,
+        field: "usage_limit_per_user",
       },
 
       category_id: {
@@ -71,6 +69,10 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: true,
       },
+      created_by: {
+        type: DataTypes.BIGINT.UNSIGNED,
+        allowNull: false,
+      },
     },
     {
       tableName: "coupons",
@@ -79,7 +81,7 @@ module.exports = (sequelize, DataTypes) => {
       updatedAt: "updated_at",
       indexes: [
         {
-          fields: ["is_active", "valid_from", "valid_until"],
+          fields: ["is_active", "start_date", "end_date"],
         },
         {
           fields: ["category_id"],

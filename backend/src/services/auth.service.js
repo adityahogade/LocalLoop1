@@ -4,6 +4,20 @@ const {
   comparePassword,
 } = require("../utils/password");
 const { generateAccessToken } = require("../utils/jwt");
+const crypto = require("crypto");
+const AppError = require("../utils/AppError");
+
+const REFRESH_DAYS = 7;
+const RESET_MINUTES = 15;
+const hashOpaqueToken = (token) => crypto.createHash("sha256").update(token).digest("hex");
+const newOpaqueToken = () => crypto.randomBytes(48).toString("base64url");
+const expiry = (minutes) => new Date(Date.now() + minutes * 60 * 1000);
+
+const issueRefreshToken = async (userId) => {
+  const token = newOpaqueToken();
+  await sequelize.query("UPDATE users SET refresh_token_hash = :hash, refresh_token_expires_at = :expires WHERE id = :userId", { replacements: { hash: hashOpaqueToken(token), expires: expiry(REFRESH_DAYS * 24 * 60), userId } });
+  return token;
+};
 
 /*
 |--------------------------------------------------------------------------
@@ -158,6 +172,12 @@ const register = async (data) => {
     );
   }
 
+  await sequelize.query(
+    `INSERT INTO customers (user_id, created_at, updated_at)
+     VALUES (:userId, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+    { replacements: { userId: users[0].id } }
+  );
+
   return users[0];
 };
 
@@ -193,7 +213,11 @@ const login = async (email, password) => {
   );
 
   if (!users.length) {
-    throw new Error("Invalid email or password");
+    throw new AppError(
+      "Invalid email or password",
+      401,
+      "INVALID_CREDENTIALS"
+    );
   }
 
   const user = users[0];
@@ -208,7 +232,11 @@ const login = async (email, password) => {
   );
 
   if (!passwordValid) {
-    throw new Error("Invalid email or password");
+    throw new AppError(
+      "Invalid email or password",
+      401,
+      "INVALID_CREDENTIALS"
+    );
   }
 
   const accessToken = generateAccessToken({
@@ -216,6 +244,7 @@ const login = async (email, password) => {
     roleId: user.role_id,
     role: user.role_name,
   });
+  const refreshToken = await issueRefreshToken(user.id);
 
   await sequelize.query(
     `
@@ -241,7 +270,35 @@ const login = async (email, password) => {
       status: user.status,
     },
     accessToken,
+    refreshToken,
   };
+};
+
+const refresh = async (refreshToken) => {
+  if (!refreshToken) throw new AppError("Refresh token is required", 401, "REFRESH_TOKEN_REQUIRED");
+  const [users] = await sequelize.query("SELECT id, role_id, status, refresh_token_expires_at FROM users WHERE refresh_token_hash = :hash LIMIT 1", { replacements: { hash: hashOpaqueToken(refreshToken) } });
+  const user = users[0];
+  if (!user || user.status !== "active" || !user.refresh_token_expires_at || new Date(user.refresh_token_expires_at) <= new Date()) throw new AppError("Refresh token is invalid or expired", 401, "INVALID_REFRESH_TOKEN");
+  const [roles] = await sequelize.query("SELECT name FROM roles WHERE id = :roleId LIMIT 1", { replacements: { roleId: user.role_id } });
+  const accessToken = generateAccessToken({ userId: user.id, roleId: user.role_id, role: roles[0]?.name });
+  return { accessToken, refreshToken: await issueRefreshToken(user.id) };
+};
+
+const logout = async (userId) => { await sequelize.query("UPDATE users SET refresh_token_hash = NULL, refresh_token_expires_at = NULL WHERE id = :userId", { replacements: { userId } }); };
+
+const requestPasswordReset = async (email) => {
+  const [users] = await sequelize.query("SELECT id FROM users WHERE email = :email AND status != 'deleted' LIMIT 1", { replacements: { email } });
+  if (!users.length) return { accepted: true };
+  const token = newOpaqueToken();
+  await sequelize.query("UPDATE users SET password_reset_token_hash = :hash, password_reset_expires_at = :expires WHERE id = :userId", { replacements: { hash: hashOpaqueToken(token), expires: expiry(RESET_MINUTES), userId: users[0].id } });
+  return { accepted: true, resetToken: token };
+};
+
+const resetPassword = async (token, password) => {
+  const [users] = await sequelize.query("SELECT id FROM users WHERE password_reset_token_hash = :hash AND password_reset_expires_at > CURRENT_TIMESTAMP LIMIT 1", { replacements: { hash: hashOpaqueToken(token) } });
+  if (!users.length) throw new AppError("Reset token is invalid or expired", 400, "INVALID_RESET_TOKEN");
+  const passwordHash = await hashPassword(password);
+  await sequelize.query("UPDATE users SET password_hash = :passwordHash, password_reset_token_hash = NULL, password_reset_expires_at = NULL, refresh_token_hash = NULL, refresh_token_expires_at = NULL WHERE id = :userId", { replacements: { passwordHash, userId: users[0].id } });
 };
 
 /*
@@ -525,6 +582,10 @@ const providerRegister = async (data) => {
 };
 module.exports = {
   register,
-   providerRegister,
+  providerRegister,
   login,
+  refresh,
+  logout,
+  requestPasswordReset,
+  resetPassword,
 };

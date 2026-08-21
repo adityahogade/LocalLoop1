@@ -1,0 +1,13 @@
+const express = require("express");
+const controller = require("../controllers/support.controller");
+const authenticate = require("../midleware/auth");
+const validate = require("../midleware/validate");
+const schemas = require("../validators/support.validator");
+const router = express.Router();
+router.use(authenticate);
+router.get("/tickets", controller.list);
+router.post("/tickets", validate(schemas.create), controller.create);
+router.get("/tickets/:id", validate(schemas.params), controller.get);
+router.post("/tickets/:id/messages", validate({ ...schemas.params, body: schemas.message }), controller.message);
+router.patch("/tickets/:id", validate({ ...schemas.params, body: schemas.update }), controller.update);
+module.exports = router;

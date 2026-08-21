@@ -13,30 +13,29 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
       },
 
-      name: {
-        type: DataTypes.STRING(100),
-        allowNull: false,
-      },
-
-      description: {
-        type: DataTypes.TEXT,
-        allowNull: true,
-      },
-
-      price: {
-        type: DataTypes.DECIMAL(12, 2),
-        allowNull: false,
-      },
-
-      billing_cycle: {
+      frequency: {
         type: DataTypes.ENUM(
           "daily",
           "weekly",
-          "monthly",
-          "quarterly",
-          "yearly"
+          "monthly"
         ),
         allowNull: false,
+      },
+
+      price: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: false,
+      },
+
+      min_quantity: {
+        type: DataTypes.DECIMAL(6, 2),
+        allowNull: false,
+        defaultValue: 1,
+      },
+
+      billing_cycle_days: {
+        type: DataTypes.SMALLINT.UNSIGNED,
+        allowNull: true,
       },
 
       is_active: {
@@ -50,6 +49,7 @@ module.exports = (sequelize, DataTypes) => {
       timestamps: true,
       createdAt: "created_at",
       updatedAt: "updated_at",
+
       indexes: [
         {
           fields: ["service_id"],

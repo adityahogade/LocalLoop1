@@ -26,6 +26,7 @@ module.exports = (sequelize, DataTypes) => {
       discount_amount: {
         type: DataTypes.DECIMAL(12, 2),
         allowNull: false,
+        field: "discount_applied",
       },
 
       used_at: {

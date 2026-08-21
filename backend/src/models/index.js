@@ -111,6 +111,7 @@ db.PlatformSetting = require("./PlatformSetting")(
   sequelize,
   DataTypes
 );
+db.WebhookEvent = require("./WebhookEvent")(sequelize, DataTypes);
 
 // ======================================================
 // USER / ROLE
