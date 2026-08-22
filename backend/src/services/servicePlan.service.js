@@ -103,18 +103,21 @@ const getOwnedService = async (
     );
   }
 
-  const service = await Service.findOne({
-    where: {
-      id: numericServiceId,
-      provider_id: providerId,
-    },
-  });
+  const service = await Service.findByPk(numericServiceId);
 
   if (!service) {
     throw new AppError(
       "Service not found",
       404,
       "SERVICE_NOT_FOUND"
+    );
+  }
+
+  if (Number(service.provider_id) !== Number(providerId)) {
+    throw new AppError(
+      "Forbidden",
+      403,
+      "FORBIDDEN"
     );
   }
 
@@ -200,18 +203,21 @@ const updatePlan = async (
     serviceId
   );
 
-  const plan = await ServicePlan.findOne({
-    where: {
-      id: Number(planId),
-      service_id: Number(serviceId),
-    },
-  });
+  const plan = await ServicePlan.findOne({ where: { id: Number(planId) } });
 
   if (!plan) {
     throw new AppError(
       "Service plan not found",
       404,
       "SERVICE_PLAN_NOT_FOUND"
+    );
+  }
+
+  if (Number(plan.service_id) !== Number(serviceId)) {
+    throw new AppError(
+      "Forbidden",
+      403,
+      "FORBIDDEN"
     );
   }
 
@@ -238,18 +244,21 @@ const deletePlan = async (
     serviceId
   );
 
-  const plan = await ServicePlan.findOne({
-    where: {
-      id: Number(planId),
-      service_id: Number(serviceId),
-    },
-  });
+  const plan = await ServicePlan.findOne({ where: { id: Number(planId) } });
 
   if (!plan) {
     throw new AppError(
       "Service plan not found",
       404,
       "SERVICE_PLAN_NOT_FOUND"
+    );
+  }
+
+  if (Number(plan.service_id) !== Number(serviceId)) {
+    throw new AppError(
+      "Forbidden",
+      403,
+      "FORBIDDEN"
     );
   }
 

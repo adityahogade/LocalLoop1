@@ -115,10 +115,7 @@ const getOwnedService = async (
   }
 
   const service = await Service.findOne({
-    where: {
-      id: numericServiceId,
-      provider_id: providerId,
-    },
+    where: { id: numericServiceId },
   });
 
   if (!service) {
@@ -126,6 +123,14 @@ const getOwnedService = async (
       "Service not found",
       404,
       "SERVICE_NOT_FOUND"
+    );
+  }
+
+  if (Number(service.provider_id) !== Number(providerId)) {
+    throw new AppError(
+      "Forbidden",
+      403,
+      "FORBIDDEN"
     );
   }
 
