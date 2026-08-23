@@ -41,6 +41,21 @@ const create = async (userId, data) => {
 };
 
 const list = async (userId, roleId) => { const where = Number(roleId) === 3 ? { provider_id: (await ensureProvider(userId)).id } : { customer_id: (await ensureCustomer(userId)).id }; return Order.findAll({ where, include: orderInclude, order: [["created_at", "DESC"]] }); };
-const get = async (userId, roleId, id) => { const orders = await list(userId, roleId); const order = orders.find((item) => String(item.id) === String(id)); if (!order) throw new AppError("Order not found", 404, "ORDER_NOT_FOUND"); return order; };
+const get = async (userId, roleId, id) => {
+  const order = await Order.findOne({ where: { id }, include: orderInclude });
+  if (!order) throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
+
+  if (Number(roleId) === 2) {
+    const activeCustomerId = Number((await ensureCustomer(userId)).id);
+    if (Number(order.customer_id) !== activeCustomerId) throw new AppError("Forbidden", 403, "FORBIDDEN");
+  }
+
+  if (Number(roleId) === 3) {
+    const activeProviderId = Number((await ensureProvider(userId)).id);
+    if (Number(order.provider_id) !== activeProviderId) throw new AppError("Forbidden", 403, "FORBIDDEN");
+  }
+
+  return order;
+};
 const updateStatus = async (userId, roleId, id, status) => { const order = await get(userId, roleId, id); const transitions = { pending: ["confirmed", "cancelled"], confirmed: ["in_progress", "cancelled"], in_progress: ["completed"], completed: [], cancelled: [] }; if (!transitions[order.status].includes(status)) throw new AppError(`Cannot change order from ${order.status} to ${status}`, 409, "INVALID_ORDER_TRANSITION"); if (Number(roleId) === 2 && !["cancelled"].includes(status)) throw new AppError("Customers can only cancel orders", 403, "FORBIDDEN"); await order.update({ status }); if (status === "confirmed") { const customer = await Customer.findByPk(order.customer_id, { attributes: ["user_id"] }); await notifications.createOnce({ user_id: customer.user_id, type: "order_confirmed", title: "Order confirmed", body: "Your provider has confirmed the order.", reference_type: "order", reference_id: order.id }); } return order; };
 module.exports = { create, list, get, updateStatus };

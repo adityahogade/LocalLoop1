@@ -86,19 +86,21 @@ const getSettlementForProvider = async (
         updated_at
       FROM provider_settlements
       WHERE id = :settlementId
-        AND provider_id = :providerId
       LIMIT 1
     `,
     {
       replacements: {
         settlementId: numericSettlementId,
-        providerId: numericProviderId,
       },
     }
   );
 
   if (!settlements.length) {
     throw new Error("Settlement not found");
+  }
+
+  if (Number(settlements[0].provider_id) !== Number(numericProviderId)) {
+    throw new AppError("Forbidden", 403, "FORBIDDEN");
   }
 
   return settlements[0];
