@@ -53,8 +53,8 @@ const env = {
 
     ssl: process.env.DB_SSL === 'true',
 
-    ca: process.env.DB_CA_CERT
-      ? process.env.DB_CA_CERT.replace(/\\n/g, '\n')
+    ca: process.DB_SSL_CA
+      ? process.DB_SSL_CA.replace(/\\n/g, '\n')
       : null,
   },
 
