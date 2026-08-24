@@ -1,30 +1,22 @@
 const dotenv = require("dotenv");
-const fs = require("fs");
 const path = require("path");
 
 dotenv.config({
   path: path.resolve(__dirname, "../../.env"),
 });
 
-// Production secret-file location
-const productionCaPath = "/etc/secrets/ca.pem";
+// --------------------------------------------------
+// CA Certificate from Environment Variable
+// --------------------------------------------------
 
-// Local CA certificate location
-const localCaPath = path.resolve(__dirname, "../../ca.pem");
+const caCertificate = process.env.DB_CA_CERT
+  ? process.env.DB_CA_CERT.replace(/\\n/g, "\n")
+  : null;
 
-// Use hosted CA if available, otherwise local CA
-const caPath = fs.existsSync(productionCaPath)
-  ? productionCaPath
-  : localCaPath;
+// --------------------------------------------------
+// SSL Configuration
+// --------------------------------------------------
 
-// Read CA certificate
-let caCertificate = null;
-
-if (fs.existsSync(caPath)) {
-  caCertificate = fs.readFileSync(caPath, "utf8");
-}
-
-// SSL configuration
 const sslConfig = caCertificate
   ? {
       require: true,
@@ -33,7 +25,10 @@ const sslConfig = caCertificate
     }
   : false;
 
-// Common configuration
+// --------------------------------------------------
+// Common Database Configuration
+// --------------------------------------------------
+
 const databaseConfig = {
   username: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
@@ -48,6 +43,10 @@ const databaseConfig = {
 
   timezone: "+05:30",
 };
+
+// --------------------------------------------------
+// Sequelize Environments
+// --------------------------------------------------
 
 module.exports = {
   development: {
