@@ -1,11 +1,12 @@
 const { Sequelize } = require('sequelize');
-const fs = require('fs');
-const path = require('path');
 const env = require('./env');
 
-const configuredCaPath = process.env.DB_SSL_CA;
-const caPath = configuredCaPath
-  ? path.resolve(configuredCaPath)
+// --------------------------------------------------
+// MySQL SSL Configuration
+// --------------------------------------------------
+
+const caCertificate = process.env.DB_CA_CERT
+  ? process.env.DB_CA_CERT.replace(/\\n/g, '\n')
   : null;
 
 const dialectOptions = env.database.ssl
@@ -13,12 +14,18 @@ const dialectOptions = env.database.ssl
       ssl: {
         require: true,
         rejectUnauthorized: true,
-        ...(caPath && fs.existsSync(caPath)
-          ? { ca: fs.readFileSync(caPath) }
+        ...(caCertificate
+          ? {
+              ca: caCertificate,
+            }
           : {}),
       },
     }
   : {};
+
+// --------------------------------------------------
+// Sequelize Instance
+// --------------------------------------------------
 
 const sequelize = new Sequelize(
   process.env.DB_NAME,
@@ -26,7 +33,8 @@ const sequelize = new Sequelize(
   process.env.DB_PASSWORD,
   {
     host: process.env.DB_HOST,
-    port: Number(process.env.DB_PORT),
+    port: Number(process.env.DB_PORT || 3306),
+
     dialect: 'mysql',
 
     dialectOptions,
@@ -56,6 +64,10 @@ const sequelize = new Sequelize(
     timezone: '+05:30',
   }
 );
+
+// --------------------------------------------------
+// Database Connection
+// --------------------------------------------------
 
 const connectDatabase = async () => {
   try {
