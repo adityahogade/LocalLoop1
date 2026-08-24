@@ -9,7 +9,7 @@ dotenv.config({
 // CA Certificate from Environment Variable
 // --------------------------------------------------
 
-const caCertificate = process.env.DB_CA_CERT
+const caCertificate = process.DB_SSL_CA
   ? process.env.DB_CA_CERT.replace(/\\n/g, "\n")
   : null;
 
