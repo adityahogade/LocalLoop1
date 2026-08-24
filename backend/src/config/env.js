@@ -26,24 +26,36 @@ const env = {
 
   timezone: process.env.TZ || 'Asia/Kolkata',
 
-  clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
+  clientUrl:
+    process.env.CLIENT_URL || 'http://localhost:5173',
 
   database: {
     host: process.env.DB_HOST,
+
     port: Number(process.env.DB_PORT) || 3306,
+
     name: process.env.DB_NAME,
+
     user: process.env.DB_USER,
+
     password: process.env.DB_PASSWORD,
+
     dialect: process.env.DB_DIALECT || 'mysql',
 
     pool: {
       max: Number(process.env.DB_POOL_MAX) || 10,
       min: Number(process.env.DB_POOL_MIN) || 0,
-      acquire: Number(process.env.DB_POOL_ACQUIRE) || 30000,
-      idle: Number(process.env.DB_POOL_IDLE) || 10000,
+      acquire:
+        Number(process.env.DB_POOL_ACQUIRE) || 30000,
+      idle:
+        Number(process.env.DB_POOL_IDLE) || 10000,
     },
 
     ssl: process.env.DB_SSL === 'true',
+
+    ca: process.env.DB_CA_CERT
+      ? process.env.DB_CA_CERT.replace(/\\n/g, '\n')
+      : null,
   },
 
   logging: {
