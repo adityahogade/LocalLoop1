@@ -2,56 +2,54 @@ const { Sequelize } = require('sequelize');
 const env = require('./env');
 
 // --------------------------------------------------
-// MySQL SSL Configuration
+// SSL / CA Certificate
 // --------------------------------------------------
 
-const caCertificate = process.env.DB_CA_CERT
-  ? process.env.DB_CA_CERT.replace(/\\n/g, '\n')
-  : null;
+const caCertificate = env.database.ca;
 
-const dialectOptions = env.database.ssl
-  ? {
-      ssl: {
-        require: true,
-        rejectUnauthorized: true,
-        ...(caCertificate
-          ? {
-              ca: caCertificate,
-            }
-          : {}),
-      },
-    }
-  : {};
+let dialectOptions = {};
+
+if (env.database.ssl) {
+  if (!caCertificate) {
+    throw new Error(
+      'DB_SSL=true but DB_CA_CERT is missing'
+    );
+  }
+
+  dialectOptions = {
+    ssl: {
+      require: true,
+      rejectUnauthorized: true,
+      ca: caCertificate,
+    },
+  };
+}
 
 // --------------------------------------------------
-// Sequelize Instance
+// Sequelize
 // --------------------------------------------------
 
 const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
-  process.env.DB_PASSWORD,
+  env.database.name,
+  env.database.user,
+  env.database.password,
   {
-    host: process.env.DB_HOST,
-    port: Number(process.env.DB_PORT || 3306),
+    host: env.database.host,
 
-    dialect: 'mysql',
+    port: env.database.port,
+
+    dialect: env.database.dialect,
 
     dialectOptions,
 
-    pool: {
-      max: 10,
-      min: 0,
-      acquire: 30000,
-      idle: 10000,
-    },
+    pool: env.database.pool,
 
     retry: {
       max: 3,
     },
 
     logging:
-      process.env.NODE_ENV === 'development'
+      env.nodeEnv === 'development'
         ? console.log
         : false,
 
@@ -73,9 +71,14 @@ const connectDatabase = async () => {
   try {
     await sequelize.authenticate();
 
-    console.log('✅ MySQL database connected successfully');
+    console.log(
+      '✅ MySQL database connected successfully'
+    );
   } catch (error) {
-    console.error('❌ MySQL database connection failed');
+    console.error(
+      '❌ MySQL database connection failed'
+    );
+
     console.error(error.message);
 
     throw error;
