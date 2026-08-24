@@ -6,10 +6,7 @@ dotenv.config({
   path: path.resolve(__dirname, "../.env"),
 });
 
-const caPath = path.resolve(
-  __dirname,
-  "../src/config/../../cert/ca (1).pem"
-);
+const caPath = "/etc/secrets/ca.pem";
 
 module.exports = {
   development: {
