@@ -1,10 +1,21 @@
+import React from 'react';
+import { BrowserRouter } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import { LanguageProvider } from './context/LanguageContext';
 import AppRoutes from './routes/AppRoutes';
-import AppShell from './components/Layout/AppShell';
+import './i18n'; // Initialize multilingual localizations
+import './App.css';
 
-export default function App() {
+function App() {
   return (
-    <AppShell>
-      <AppRoutes />
-    </AppShell>
+    <BrowserRouter>
+      <AuthProvider>
+        <LanguageProvider>
+          <AppRoutes />
+        </LanguageProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
+
+export default App;

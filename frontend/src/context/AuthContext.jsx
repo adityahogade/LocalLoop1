@@ -1,101 +1,156 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import authService from '../services/auth.service';
-import { clearAuthState, getAccessToken, getRefreshToken, saveSession } from '../utils/tokenStorage';
+import React, { createContext, useState, useEffect, useContext } from 'react';
+import { authApi } from '../api/auth';
 
-export const AuthContext = createContext(null);
+const AuthContext = createContext(null);
 
-const normalizeUser = (user) => {
-  if (!user) return null;
-
-  return {
-    ...user,
-    role: String(user.role || user.role_name || '').toLowerCase(),
-  };
-};
-
-export function AuthProvider({ children }) {
+export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(Boolean(getAccessToken()));
-  const [isReady, setIsReady] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const applySession = (sessionUser) => {
-    const normalized = normalizeUser(sessionUser);
-    setUser(normalized);
-    setIsAuthenticated(Boolean(normalized));
-  };
-
-  const refreshSession = async () => {
-    const token = getAccessToken();
-    if (!token) {
-      setIsReady(true);
-      setUser(null);
-      setIsAuthenticated(false);
-      return;
-    }
-
-    try {
-      const currentUser = await authService.getCurrentUser();
-      applySession(currentUser);
-    } catch (_error) {
-      clearAuthState();
-      setUser(null);
-      setIsAuthenticated(false);
-    } finally {
-      setIsReady(true);
-    }
-  };
-
+  // Initialize Auth state from localStorage
   useEffect(() => {
-    refreshSession();
+    const initializeAuth = async () => {
+      const storedUser = localStorage.getItem('user');
+      const token = localStorage.getItem('accessToken');
+
+      if (storedUser && token) {
+        try {
+          setUser(JSON.parse(storedUser));
+          
+          // Verify session freshness with backend /me call
+          const res = await authApi.getMe();
+          if (res?.success && res?.data) {
+            // Keep role and ID sync from backend
+            const updatedUser = {
+              ...JSON.parse(storedUser),
+              id: res.data.userId,
+              role: res.data.role,
+            };
+            setUser(updatedUser);
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+          }
+        } catch (err) {
+          console.error('Session validation failed:', err);
+          // Token is invalid or expired, clear it
+          logoutLocal();
+        }
+      }
+      setLoading(false);
+    };
+
+    initializeAuth();
+
+    // Listen for global logout events triggered by Axios interceptor
+    const handleGlobalLogout = () => {
+      setUser(null);
+    };
+    window.addEventListener('auth-logout', handleGlobalLogout);
+
+    return () => {
+      window.removeEventListener('auth-logout', handleGlobalLogout);
+    };
   }, []);
 
-  const login = async ({ email, password }) => {
-    const result = await authService.login({ email, password });
-    const accessToken = result.accessToken || result.access_token;
-    const refreshToken = result.refreshToken || result.refresh_token;
-
-    saveSession({ accessToken, refreshToken });
-
-    const nextUser = normalizeUser(result.user);
-    applySession(nextUser || (await authService.getCurrentUser()));
-    return result;
-  };
-
-  const register = async (payload) => authService.register(payload);
-
-  const logout = async () => {
+  const login = async (email, password) => {
+    setLoading(true);
     try {
-      await authService.logout();
-    } catch (_error) {
-      // Ignore API failures and clear local state.
-    } finally {
-      clearAuthState();
-      setUser(null);
-      setIsAuthenticated(false);
+      const res = await authApi.login(email, password);
+      if (res?.success && res?.data) {
+        const { user: userData, accessToken, refreshToken } = res.data;
+        
+        localStorage.setItem('accessToken', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
+        localStorage.setItem('user', JSON.stringify(userData));
+        
+        setUser(userData);
+        setLoading(false);
+        return userData;
+      }
+      throw new Error('Login failed: Invalid server response.');
+    } catch (err) {
+      setLoading(false);
+      throw err;
     }
   };
 
-  const value = useMemo(
-    () => ({
-      user,
-      isAuthenticated,
-      isReady,
-      login,
-      register,
-      logout,
-      refreshToken: getRefreshToken(),
-      role: user?.role || null,
-    }),
-    [user, isAuthenticated, isReady]
-  );
+  const logoutLocal = () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    setUser(null);
+  };
+
+  const logout = async () => {
+    setLoading(true);
+    try {
+      await authApi.logout();
+    } catch (err) {
+      console.error('Server logout failed, clearing local session anyway:', err);
+    } finally {
+      logoutLocal();
+      setLoading(false);
+    }
+  };
+
+  const registerCustomer = async (data) => {
+    setLoading(true);
+    try {
+      const res = await authApi.registerCustomer(data);
+      setLoading(false);
+      return res;
+    } catch (err) {
+      setLoading(false);
+      throw err;
+    }
+  };
+
+  const registerProvider = async (data) => {
+    setLoading(true);
+    try {
+      const res = await authApi.registerProvider(data);
+      setLoading(false);
+      return res;
+    } catch (err) {
+      setLoading(false);
+      throw err;
+    }
+  };
+
+  const value = {
+    user,
+    isAuthenticated: !!user,
+    role: user?.role || null,
+    loading,
+    login,
+    logout,
+    registerCustomer,
+    registerProvider,
+    refreshUser: async () => {
+      try {
+        const res = await authApi.getMe();
+        if (res?.success && res?.data) {
+          const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+          const updatedUser = {
+            ...storedUser,
+            id: res.data.userId,
+            role: res.data.role,
+          };
+          setUser(updatedUser);
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+        }
+      } catch (err) {
+        console.error('Failed to refresh user info:', err);
+      }
+    }
+  };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
+};
 
-export function useAuth() {
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}
+};
