@@ -11,6 +11,7 @@ router.post("/", validate(schemas.create), controller.create);
 router.get("/:id", validate(schemas.params), controller.get);
 router.patch("/:id", validate({ ...schemas.params, body: schemas.update }), controller.update);
 router.get("/:id/deliveries", validate(schemas.params), controller.deliveries);
+router.get("/:id/today", validate(schemas.params), controller.today);
 router.post("/:id/skip", validate({ ...schemas.params, body: schemas.skip }), controller.skip);
 router.post("/:id/pause", validate(schemas.params), controller.pause);
 router.post("/:id/resume", validate(schemas.params), controller.resume);

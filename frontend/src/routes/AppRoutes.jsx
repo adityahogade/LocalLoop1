@@ -15,6 +15,7 @@ import ForgotPassword from '../pages/auth/ForgotPassword';
 import ResetPassword from '../pages/auth/ResetPassword';
 
 // Customer Pages
+import Landing from '../pages/customer/Landing';
 import Catalog from '../pages/customer/Catalog';
 import ProviderProfile from '../pages/customer/ProviderProfile';
 import BookService from '../pages/customer/BookService';
@@ -40,6 +41,7 @@ import AdminKyc from '../pages/admin/AdminKyc';
 import AdminUsers from '../pages/admin/AdminUsers';
 import AdminProviders from '../pages/admin/AdminProviders';
 import AdminCatalog from '../pages/admin/AdminCatalog';
+import AdminPayments from '../pages/admin/AdminPayments';
 import AdminSettlements from '../pages/admin/AdminSettlements';
 import AdminCommissions from '../pages/admin/AdminCommissions';
 import AdminCoupons from '../pages/admin/AdminCoupons';
@@ -90,7 +92,8 @@ export default function AppRoutes() {
 
       {/* CUSTOMER PORTAL (Root Public / Catalog browse) */}
       <Route path="/" element={<CustomerLayout />}>
-        <Route index element={<Catalog />} />
+        <Route index element={<Landing />} />
+        <Route path="catalog" element={<Catalog />} />
         <Route path="providers/:id" element={<ProviderProfile />} />
         
         {/* Customer Protected Pages */}
@@ -182,12 +185,13 @@ export default function AppRoutes() {
       >
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="payments" element={<AdminPayments />} />
+        <Route path="settlements" element={<AdminSettlements />} />
+        <Route path="commissions" element={<AdminCommissions />} />
         <Route path="kyc" element={<AdminKyc />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="providers" element={<AdminProviders />} />
         <Route path="catalog" element={<AdminCatalog />} />
-        <Route path="settlements" element={<AdminSettlements />} />
-        <Route path="commissions" element={<AdminCommissions />} />
         <Route path="coupons" element={<AdminCoupons />} />
         <Route path="support" element={<AdminSupport />} />
         <Route path="settings" element={<AdminSettings />} />

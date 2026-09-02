@@ -16,6 +16,17 @@ export default function AdminKyc() {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
 
+  const getFullFileUrl = (url) => {
+    if (!url) return '#';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+    const serverBase = apiBase.replace(/\/api$/, '');
+    const cleanPath = url.startsWith('/') ? url.slice(1) : url;
+    const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+    const separator = cleanPath.includes('?') ? '&' : '?';
+    return token ? `${serverBase}/${cleanPath}${separator}token=${token}` : `${serverBase}/${cleanPath}`;
+  };
+
   const fetchPendingDocs = async () => {
     setLoading(true);
     setError(null);
@@ -104,12 +115,12 @@ export default function AdminKyc() {
                 {docs.map((doc) => (
                   <tr key={doc.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 font-bold text-gray-800">
-                      {doc.provider?.business_name}
+                      {doc.business_name || doc.provider?.business_name || 'N/A'}
                     </td>
                     <td className="px-6 py-4 capitalize">{doc.document_type?.replace(/_/g, ' ')}</td>
                     <td className="px-6 py-4">
                       <a
-                        href={doc.file_url}
+                        href={getFullFileUrl(doc.file_url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:underline flex items-center gap-1 font-bold text-xs"

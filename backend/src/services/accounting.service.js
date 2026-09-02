@@ -208,8 +208,8 @@ const getAnalytics = async (userId, from = null, to = null) => {
   const range = getDateRange("custom", from || "1970-01-01", to || new Date().toISOString().slice(0, 10));
   const replacements = { providerId: provider.id, ...range.replacements };
   const [trend] = await sequelize.query(`SELECT earning_date AS date, COALESCE(SUM(gross_amount),0) AS revenue, COALESCE(SUM(net_earning),0) AS earnings, COALESCE(SUM(commission_amount),0) AS commission FROM provider_earnings WHERE provider_id = :providerId AND earning_date ${range.condition} GROUP BY earning_date ORDER BY earning_date ASC`, { replacements });
-  const [orders] = await sequelize.query(`SELECT status, COUNT(*) AS count FROM orders WHERE provider_id=:providerId AND created_at ${range.condition} GROUP BY status`, { replacements });
-  const [subscriptions] = await sequelize.query(`SELECT status, COUNT(*) AS count FROM customer_subscriptions WHERE provider_id=:providerId AND created_at ${range.condition} GROUP BY status`, { replacements });
+  const [orders] = await sequelize.query(`SELECT status, COUNT(*) AS count FROM orders WHERE provider_id=:providerId AND DATE(created_at) ${range.condition} GROUP BY status`, { replacements });
+  const [subscriptions] = await sequelize.query(`SELECT status, COUNT(*) AS count FROM customer_subscriptions WHERE provider_id=:providerId AND DATE(created_at) ${range.condition} GROUP BY status`, { replacements });
   return { from: from || null, to: to || null, trend, order_statuses: orders, subscription_statuses: subscriptions };
 };
 module.exports = { getAccountingSummary, getAnalytics };

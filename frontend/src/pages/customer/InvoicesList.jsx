@@ -3,12 +3,13 @@ import { customerApi } from '../../api/customer';
 import Skeleton from '../../components/common/Skeleton';
 import StatusBadge from '../../components/common/StatusBadge';
 import EmptyState from '../../components/common/EmptyState';
-import { FiDownload, FiFileText } from 'react-icons/fi';
+import { FiDownload, FiFileText, FiCheckCircle, FiPackage, FiBriefcase } from 'react-icons/fi';
 
 export default function InvoicesList() {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [downloadingId, setDownloadingId] = useState(null);
 
   const fetchInvoices = async () => {
     setLoading(true);
@@ -20,7 +21,11 @@ export default function InvoicesList() {
       }
     } catch (err) {
       console.error(err);
-      setError('Failed to fetch billing invoices.');
+      if (err.code === 'CUSTOMER_NOT_FOUND') {
+        setError('Customer profile not found in database. Please register a new customer account using the Sign Up page.');
+      } else {
+        setError('Failed to load invoices.');
+      }
     } finally {
       setLoading(false);
     }
@@ -31,6 +36,7 @@ export default function InvoicesList() {
   }, []);
 
   const handleDownload = async (id, invoiceNumber) => {
+    setDownloadingId(id);
     try {
       const blob = await customerApi.getInvoicePdfBlob(id);
       const file = new Blob([blob], { type: 'application/pdf' });
@@ -45,59 +51,104 @@ export default function InvoicesList() {
     } catch (err) {
       console.error('Invoice download failed:', err);
       alert('Failed to download invoice PDF.');
+    } finally {
+      setDownloadingId(null);
     }
   };
 
   if (loading) return <Skeleton type="table" count={5} />;
-  if (error) return <div className="p-4 bg-red-50 text-red-700 rounded-lg">{error}</div>;
+  if (error) return <div className="p-4 bg-red-50 text-red-700 rounded-xl text-xs font-bold shadow-xs">⚠️ {error}</div>;
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center border-b border-gray-100 pb-4">
-        <h2 className="text-2xl font-black text-gray-900">Billing Invoices</h2>
+    <div className="space-y-6 text-left font-semibold pb-12">
+      {/* Header Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-xs">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-black text-blue-600 bg-blue-50 border border-blue-200/60 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+              Customer Billing
+            </span>
+            <span className="text-slate-300 text-xs">•</span>
+            <span className="text-xs font-bold text-slate-500">ServiceHub Invoices</span>
+          </div>
+          <h2 className="text-xl font-black text-slate-900 tracking-tight mt-1.5">Billing & Invoices</h2>
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
+            Download and review official service receipts for all completed subscriptions and on-demand bookings.
+          </p>
+        </div>
+
+        {invoices.length > 0 && (
+          <div className="flex items-center gap-2 self-start sm:self-auto bg-slate-50 border border-slate-200/80 px-3.5 py-2 rounded-xl text-xs">
+            <FiCheckCircle className="text-emerald-500 w-4 h-4" />
+            <span className="text-slate-600 font-bold">
+              {invoices.filter(i => i.payment_status === 'paid').length} Paid Receipts
+            </span>
+          </div>
+        )}
       </div>
 
       {invoices.length === 0 ? (
         <EmptyState
           title="No invoices found"
-          description="Invoices are generated automatically upon successful payment verification checkout."
+          description="Invoices are generated automatically upon successful checkout and payment confirmation."
         />
       ) : (
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+        <div className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left text-gray-600">
-              <thead className="bg-gray-50 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">
+            <table className="w-full text-xs text-left text-slate-600">
+              <thead className="bg-slate-50/80 text-[11px] font-black text-slate-500 uppercase tracking-wider border-b border-slate-200/70">
                 <tr>
-                  <th className="px-6 py-3">Invoice No.</th>
-                  <th className="px-6 py-3">Reference Type</th>
-                  <th className="px-6 py-3">Bill Amount</th>
-                  <th className="px-6 py-3">Status</th>
-                  <th className="px-6 py-3">Issued Date</th>
-                  <th className="px-6 py-3 text-right">Actions</th>
+                  <th className="px-5 py-3.5">Invoice No.</th>
+                  <th className="px-5 py-3.5">Service Type</th>
+                  <th className="px-5 py-3.5">Service Provider</th>
+                  <th className="px-5 py-3.5">Total Paid</th>
+                  <th className="px-5 py-3.5">Status</th>
+                  <th className="px-5 py-3.5">Issue Date</th>
+                  <th className="px-5 py-3.5 text-right">Receipt</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 font-medium">
+              <tbody className="divide-y divide-slate-100 font-medium">
                 {invoices.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 flex items-center font-bold text-gray-800">
-                      <FiFileText className="w-4 h-4 mr-2 text-gray-400" />
+                  <tr key={inv.id} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="px-5 py-4 font-mono font-bold text-slate-900 flex items-center">
+                      <FiFileText className="w-4 h-4 mr-2 text-blue-500 shrink-0" />
                       {inv.invoice_number}
                     </td>
-                    <td className="px-6 py-4 capitalize">{inv.reference_type?.replace(/_/g, ' ')}</td>
-                    <td className="px-6 py-4 text-gray-900 font-black">₹{Number(inv.total).toFixed(2)}</td>
-                    <td className="px-6 py-4">
+                    <td className="px-5 py-4">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700">
+                        {inv.reference_type === 'subscription_payment' ? (
+                          <>
+                            <FiPackage className="w-3 h-3 text-blue-600" />
+                            Subscription
+                          </>
+                        ) : (
+                          <>
+                            <FiBriefcase className="w-3 h-3 text-indigo-600" />
+                            One-Time Order
+                          </>
+                        )}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 font-bold text-slate-800">
+                      {inv.provider?.business_name || 'Local Service Provider'}
+                    </td>
+                    <td className="px-5 py-4 text-slate-900 font-black text-sm">
+                      ₹{Number(inv.total).toFixed(2)}
+                    </td>
+                    <td className="px-5 py-4">
                       <StatusBadge status={inv.payment_status} />
                     </td>
-                    <td className="px-6 py-4 text-xs text-gray-400">
-                      {new Date(inv.issued_at || inv.created_at).toLocaleDateString()}
+                    <td className="px-5 py-4 text-slate-500 font-medium">
+                      {new Date(inv.issued_at || inv.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-5 py-4 text-right">
                       <button
                         onClick={() => handleDownload(inv.id, inv.invoice_number)}
-                        className="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-bold transition-colors"
+                        disabled={downloadingId === inv.id}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-lg text-xs font-bold transition-all shadow-2xs active:scale-[0.98] cursor-pointer disabled:opacity-50"
                       >
-                        <FiDownload className="w-3.5 h-3.5 mr-1" />
-                        PDF
+                        <FiDownload className="w-3.5 h-3.5" />
+                        {downloadingId === inv.id ? 'Generating...' : 'Download PDF'}
                       </button>
                     </td>
                   </tr>

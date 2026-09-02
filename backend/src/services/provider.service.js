@@ -387,6 +387,9 @@ const getMyProviderProfile = async (userId) => {
         p.kyc_rejection_reason,
         p.is_active,
         p.average_rating,
+        p.latitude,
+        p.longitude,
+        p.service_radius_km,
         p.created_at,
         p.updated_at
       FROM providers p
@@ -421,6 +424,9 @@ const updateMyProviderProfile = async (userId, data) => {
     "business_name",
     "business_description",
     "logo_url",
+    "latitude",
+    "longitude",
+    "service_radius_km",
   ];
 
   const updates = [];
@@ -485,6 +491,58 @@ const updateMyProviderProfile = async (userId, data) => {
   return getMyProviderProfile(userId);
 };
 
+const getSubscriptions = async (providerId) => {
+  const { CustomerSubscription, Customer, User, Service, ServicePlan, Address } = require("../models");
+  const subscriptionService = require("./subscription.service");
+  const rows = await CustomerSubscription.findAll({
+    where: { provider_id: providerId },
+    include: [
+      {
+        model: Customer,
+        as: "customer",
+        include: [{ model: User, as: "user", attributes: ["id", "full_name", "email", "phone"] }]
+      },
+      {
+        model: Service,
+        as: "service",
+        attributes: ["id", "name", "type", "unit"]
+      },
+      {
+        model: ServicePlan,
+        as: "servicePlan"
+      },
+      {
+        model: Address,
+        as: "address"
+      }
+    ],
+    order: [["created_at", "DESC"]]
+  });
+
+  const result = [];
+  for (const sub of rows) {
+    const subJson = sub.toJSON();
+    if (["active", "paused", "vacation"].includes(sub.status)) {
+      subJson.delivery_tracking = await subscriptionService.getDeliveryTracking(sub);
+    } else {
+      subJson.delivery_tracking = {
+        today_delivery: null,
+        today_delivery_status: "NO_DELIVERY",
+        total_deliveries: 0,
+        completed_deliveries: 0,
+        remaining_deliveries: 0,
+        skipped_deliveries: 0,
+        remaining_days: 0,
+        next_delivery_date: null,
+        next_delivery_label: "None",
+        deliveries: []
+      };
+    }
+    result.push(subJson);
+  }
+  return result;
+};
+
 module.exports = {
   getAllProviders,
   getProviderById,
@@ -494,4 +552,5 @@ module.exports = {
   updateProviderKyc,
   getMyProviderProfile,
   updateMyProviderProfile,
+  getSubscriptions,
 };

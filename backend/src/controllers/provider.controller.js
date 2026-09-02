@@ -194,6 +194,27 @@ const updateMyProviderProfile = async (req, res, next) => {
   }
 };
 
+const getMySubscriptions = async (req, res, next) => {
+  try {
+    const { Provider } = require("../models");
+    const provider = await Provider.findOne({ where: { user_id: req.user.id } });
+    if (!provider) {
+      return res.status(404).json({
+        success: false,
+        error: { code: "PROVIDER_NOT_FOUND", message: "Provider profile not found" }
+      });
+    }
+    const data = await providerService.getSubscriptions(provider.id);
+    return res.status(200).json({
+      success: true,
+      message: "Provider subscriptions fetched successfully",
+      data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllProviders,
   getProviderById,
@@ -202,5 +223,6 @@ module.exports = {
   updateProviderStatus,
   updateProviderKyc,
   getMyProviderProfile,
-updateMyProviderProfile,
+  updateMyProviderProfile,
+  getMySubscriptions,
 };

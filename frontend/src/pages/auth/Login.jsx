@@ -26,18 +26,31 @@ export default function Login() {
 
     try {
       const loggedUser = await login(email, password);
-      
-      // Redirect based on role
-      const from = location.state?.from?.pathname;
-      if (from) {
-        navigate(from, { replace: true });
-      } else if (loggedUser.role === 'admin') {
-        navigate('/admin/dashboard');
-      } else if (loggedUser.role === 'provider') {
-        navigate('/provider/dashboard');
-      } else {
-        navigate('/');
-      }
+      const userRole = loggedUser?.role?.toLowerCase();
+
+      // Validate if return URL from navigation state matches the newly logged-in user's role
+      const rawFrom = location.state?.from?.pathname;
+      const isFromValid = (fromPath, role) => {
+        if (!fromPath || typeof fromPath !== 'string') return false;
+        const path = fromPath.trim();
+        if (path === '/login' || path === '/unauthorized' || path === '/') return false;
+        if (role === 'admin') return path.startsWith('/admin');
+        if (role === 'provider') return path.startsWith('/provider');
+        if (role === 'customer') return !path.startsWith('/provider') && !path.startsWith('/admin');
+        return false;
+      };
+
+      const getDefaultDashboard = (role) => {
+        if (role === 'admin') return '/admin/dashboard';
+        if (role === 'provider') return '/provider/dashboard';
+        return '/';
+      };
+
+      const targetPath = isFromValid(rawFrom, userRole)
+        ? rawFrom
+        : getDefaultDashboard(userRole);
+
+      navigate(targetPath, { replace: true });
     } catch (err) {
       console.error('Login request failed:', err);
       setError(err.message || 'Invalid email or password.');

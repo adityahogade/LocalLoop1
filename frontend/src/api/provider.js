@@ -46,7 +46,7 @@ export const providerApi = {
   // Orders & Deliveries
   getOrders: () => axiosClient.get('/orders'),
   updateOrderStatus: (id, status) => axiosClient.patch(`/orders/${id}/status`, { status }),
-  updateDeliveryStatus: (id, status, notes = '') => axiosClient.patch(`/providers/deliveries/${id}/status`, { status, notes }),
+  updateDeliveryStatus: (id, status, notes = '', otp = '') => axiosClient.patch(`/providers/deliveries/${id}/status`, { status, notes, otp }),
 
   // Expenses
   getExpenses: () => axiosClient.get('/providers/expenses'),
@@ -59,11 +59,15 @@ export const providerApi = {
   getAccountingSummary: (params) => axiosClient.get('/providers/accounting/summary', { params }),
   getAccountingAnalytics: (params) => axiosClient.get('/providers/accounting/analytics', { params }),
 
-  // Payout Settlements
+  // Payout Settlements & Earnings
   getSettlements: () => axiosClient.get('/providers/settlements'),
+  getEarningsSummary: () => axiosClient.get('/providers/settlements/summary'),
   getSettlement: (id) => axiosClient.get(`/providers/settlements/${id}`),
   requestSettlement: (payload) => axiosClient.post('/providers/settlements', payload),
 
   // Review Reply
   replyToReview: (id, reply) => axiosClient.post(`/reviews/${id}/reply`, { reply }),
+
+  // Subscriptions
+  getSubscriptions: () => axiosClient.get('/providers/me/subscriptions'),
 };

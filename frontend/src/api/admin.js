@@ -21,7 +21,13 @@ export const adminApi = {
 
   // KYC Approvals
   getPendingKyc: () => axiosClient.get('/admin/kyc'),
-  reviewKyc: (id, status, rejection_reason = null) => axiosClient.patch(`/admin/kyc/${id}/review`, { status, rejection_reason }),
+  reviewKyc: (id, status, rejection_reason = null) => {
+    const body = { status };
+    if (rejection_reason) {
+      body.rejection_reason = rejection_reason;
+    }
+    return axiosClient.patch(`/admin/kyc/${id}/review`, body);
+  },
 
   // Categories
   getCategories: () => axiosClient.get('/admin/categories'),
@@ -52,8 +58,13 @@ export const adminApi = {
   createCoupon: (coupon) => axiosClient.post('/admin/coupons', coupon),
   updateCoupon: (id, coupon) => axiosClient.patch(`/admin/coupons/${id}`, coupon),
 
+  // Payment Management
+  getPayments: (params) => axiosClient.get('/admin/payments', { params }),
+
   // Payout Settlements
   getSettlements: () => axiosClient.get('/admin/settlements'),
+  getSettlementsOverview: () => axiosClient.get('/admin/settlements/overview'),
+  settleProvider: (providerId, payout_reference = null) => axiosClient.post(`/admin/settlements/provider/${providerId}/settle`, { payout_reference }),
   updateSettlement: (id, data) => axiosClient.patch(`/admin/settlements/${id}`, data), // approve/reject/mark paid
 
   // Refunds

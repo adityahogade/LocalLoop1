@@ -1,4 +1,5 @@
 const { Sequelize } = require('sequelize');
+const fs = require('fs');
 require('dotenv').config();
 
 // --------------------------------------------------
@@ -6,7 +7,7 @@ require('dotenv').config();
 // --------------------------------------------------
 
 const caCertificate = process.env.DB_SSL_CA
-  ? process.env.DB_SSL_CA.replace(/\\n/g, '\n')
+  ? fs.readFileSync(process.env.DB_SSL_CA, 'utf8')
   : null;
 
 const sslEnabled = process.env.DB_SSL === 'true';

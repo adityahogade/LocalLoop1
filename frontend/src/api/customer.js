@@ -26,6 +26,7 @@ export const customerApi = {
   skipSubscriptionDate: (id, date, reason) => axiosClient.post(`/subscriptions/${id}/skip`, { skip_date: date, reason }),
   setVacationMode: (id, start, end) => axiosClient.post(`/subscriptions/${id}/vacation`, { vacation_start: start, vacation_end: end }),
   getSubscriptionDeliveries: (id) => axiosClient.get(`/subscriptions/${id}/deliveries`),
+  getTodayDeliveryTracking: (id) => axiosClient.get(`/subscriptions/${id}/today`),
   getSubscriptionCalendar: (id, from, to) => axiosClient.get(`/subscriptions/${id}/calendar`, { params: { from, to } }),
 
   // Bookings (One-time orders)
@@ -36,6 +37,7 @@ export const customerApi = {
 
   // Payments & Checkout
   createPaymentOrder: (payload) => axiosClient.post('/payments/orders', payload),
+  initiatePayment: (payload) => axiosClient.post('/payments/orders', payload),
   verifyPayment: (payload) => axiosClient.post('/payments/verify', payload),
 
   // Wallet

@@ -71,8 +71,22 @@ const createSettlement = async (req, res, next) => {
   }
 };
 
+const getEarningsSummary = async (req, res, next) => {
+  try {
+    const summary = await settlementService.getProviderEarningsSummary(req.user.id);
+    return res.status(200).json({
+      success: true,
+      message: "Provider earnings summary fetched successfully",
+      data: summary,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getSettlements,
   getSettlementById,
   createSettlement,
+  getEarningsSummary,
 };

@@ -154,6 +154,20 @@ const updateMyProviderProfileSchema = {
       .uri()
       .max(255)
       .allow("", null),
+
+    latitude: Joi.number()
+      .min(-90)
+      .max(90)
+      .allow(null),
+
+    longitude: Joi.number()
+      .min(-180)
+      .max(180)
+      .allow(null),
+
+    service_radius_km: Joi.number()
+      .greater(0)
+      .allow(null),
   })
     .min(1)
     .required(),

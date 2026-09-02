@@ -15,16 +15,20 @@ export const AuthProvider = ({ children }) => {
 
       if (storedUser && token) {
         try {
-          setUser(JSON.parse(storedUser));
+          const parsedUser = JSON.parse(storedUser);
+          if (parsedUser && parsedUser.role) {
+            parsedUser.role = parsedUser.role.toLowerCase();
+          }
+          setUser(parsedUser);
           
           // Verify session freshness with backend /me call
           const res = await authApi.getMe();
           if (res?.success && res?.data) {
             // Keep role and ID sync from backend
             const updatedUser = {
-              ...JSON.parse(storedUser),
+              ...parsedUser,
               id: res.data.userId,
-              role: res.data.role,
+              role: res.data.role?.toLowerCase(),
             };
             setUser(updatedUser);
             localStorage.setItem('user', JSON.stringify(updatedUser));
@@ -57,6 +61,9 @@ export const AuthProvider = ({ children }) => {
       const res = await authApi.login(email, password);
       if (res?.success && res?.data) {
         const { user: userData, accessToken, refreshToken } = res.data;
+        if (userData && userData.role) {
+          userData.role = userData.role.toLowerCase();
+        }
         
         localStorage.setItem('accessToken', accessToken);
         localStorage.setItem('refreshToken', refreshToken);
@@ -77,6 +84,12 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('lastRoute');
+    localStorage.removeItem('redirect');
+    localStorage.removeItem('returnUrl');
+    localStorage.removeItem('intendedRoute');
+    localStorage.removeItem('previousRoute');
     setUser(null);
   };
 
@@ -133,7 +146,7 @@ export const AuthProvider = ({ children }) => {
           const updatedUser = {
             ...storedUser,
             id: res.data.userId,
-            role: res.data.role,
+            role: res.data.role?.toLowerCase(),
           };
           setUser(updatedUser);
           localStorage.setItem('user', JSON.stringify(updatedUser));

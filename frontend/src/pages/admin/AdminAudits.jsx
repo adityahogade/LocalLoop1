@@ -15,7 +15,7 @@ export default function AdminAudits() {
     try {
       const res = await adminApi.getAuditLogs();
       if (res?.success) {
-        setLogs(res.data || []);
+        setLogs(res.data?.rows || res.data || []);
       }
     } catch (err) {
       console.error(err);

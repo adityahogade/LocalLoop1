@@ -65,6 +65,11 @@ router.get(
   controller.getSettlements
 );
 
+router.get(
+  "/summary",
+  controller.getEarningsSummary
+);
+
 /*
 |--------------------------------------------------------------------------
 | GET /api/providers/settlements/:id

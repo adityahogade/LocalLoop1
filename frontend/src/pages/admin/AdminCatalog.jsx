@@ -17,7 +17,7 @@ export default function AdminCatalog() {
   const [editCategoryId, setEditCategoryId] = useState(null);
   const [catName, setCatName] = useState('');
   const [catSlug, setCatSlug] = useState('');
-  const [catDescription, setCatDescription] = useState('');
+  const [catIconUrl, setCatIconUrl] = useState('');
   const [submittingCategory, setSubmittingCategory] = useState(false);
 
   // Service Moderation Modal
@@ -55,7 +55,7 @@ export default function AdminCatalog() {
     setEditCategoryId(null);
     setCatName('');
     setCatSlug('');
-    setCatDescription('');
+    setCatIconUrl('');
     setCategoryModalOpen(true);
   };
 
@@ -63,7 +63,7 @@ export default function AdminCatalog() {
     setEditCategoryId(cat.id);
     setCatName(cat.name);
     setCatSlug(cat.slug);
-    setCatDescription(cat.description || '');
+    setCatIconUrl(cat.icon_url || '');
     setCategoryModalOpen(true);
   };
 
@@ -71,10 +71,19 @@ export default function AdminCatalog() {
     e.preventDefault();
     setSubmittingCategory(true);
 
+    const isUrl = catSlug.includes('://') || catSlug.includes('/');
+    const resolvedSlug = (isUrl ? '' : catSlug) || catName;
+    const sanitizedSlug = resolvedSlug
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9-]+/g, '-')
+      .replace(/(^-|-$)/g, '')
+      .slice(0, 50);
+
     const payload = {
-      name: catName,
-      slug: catSlug || catName.toLowerCase().replace(/ /g, '-'),
-      description: catDescription,
+      name: catName.trim(),
+      slug: sanitizedSlug,
+      icon_url: catIconUrl.trim() || null,
     };
 
     try {
@@ -110,7 +119,7 @@ export default function AdminCatalog() {
 
     setSubmittingMod(true);
     try {
-      const res = await adminApi.moderateService(selectedService.id, modStatus, modNotes);
+      const res = await adminApi.moderateService(selectedService.id, modStatus === 'approved');
       if (res?.success) {
         alert('Service moderation outcome applied successfully!');
         setModModalOpen(false);
@@ -251,7 +260,7 @@ export default function AdminCatalog() {
                 <label className="block text-gray-500 mb-2">URL Slug (Optional)</label>
                 <input
                   type="text"
-                  placeholder="e.g. cleaning"
+                  placeholder="e.g. water-service (lowercase letters, numbers, and hyphens)"
                   value={catSlug}
                   onChange={(e) => setCatSlug(e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-blue-500 text-xs"
@@ -259,11 +268,12 @@ export default function AdminCatalog() {
               </div>
 
               <div>
-                <label className="block text-gray-500 mb-2">Description</label>
-                <textarea
-                  rows="3"
-                  value={catDescription}
-                  onChange={(e) => setCatDescription(e.target.value)}
+                <label className="block text-gray-500 mb-2">Icon / Image URL (Optional)</label>
+                <input
+                  type="url"
+                  placeholder="e.g. https://example.com/icon.png"
+                  value={catIconUrl}
+                  onChange={(e) => setCatIconUrl(e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-blue-500 text-xs"
                 />
               </div>

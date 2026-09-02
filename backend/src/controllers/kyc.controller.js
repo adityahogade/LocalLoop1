@@ -86,7 +86,34 @@ const getMyKycDocuments = async (req, res, next) => {
   }
 };
 
+/*
+|--------------------------------------------------------------------------
+| Serve Private KYC Document
+|--------------------------------------------------------------------------
+|
+| GET /private-uploads/kyc/:filename
+| GET /api/kyc/documents/:filename
+|
+*/
+const serveKycDocument = async (req, res, next) => {
+  try {
+    const filename = req.params.filename || req.params[0];
+    const { filePath, filename: safeFilename, mimeType } = await kycService.getKycDocumentFile(req.user, filename);
+
+    res.setHeader("Content-Type", mimeType);
+    res.setHeader("Content-Disposition", `inline; filename="${safeFilename}"`);
+    res.setHeader("Cache-Control", "private, max-age=3600");
+
+    const stream = fs.createReadStream(filePath);
+    stream.on("error", (err) => next(err));
+    stream.pipe(res);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   submitKyc,
   getMyKycDocuments,
+  serveKycDocument,
 };
