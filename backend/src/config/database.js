@@ -1,13 +1,14 @@
 const { Sequelize } = require('sequelize');
-const fs = require('fs');
 require('dotenv').config();
 
 // --------------------------------------------------
 // SSL / CA Certificate
+// DB_SSL_CA contains the actual CA certificate,
+// NOT a file path.
 // --------------------------------------------------
 
 const caCertificate = process.env.DB_SSL_CA
-  ? fs.readFileSync(process.env.DB_SSL_CA, 'utf8')
+  ? process.env.DB_SSL_CA.replace(/\\n/g, '\n')
   : null;
 
 const sslEnabled = process.env.DB_SSL === 'true';
@@ -53,21 +54,25 @@ const sequelize = new Sequelize(
       idle: Number(process.env.DB_POOL_IDLE) || 10000,
     },
 
+    // Retry failed connections
     retry: {
       max: 3,
     },
 
+    // Logging
     logging:
       process.env.NODE_ENV === 'development'
         ? console.log
         : false,
 
+    // Model defaults
     define: {
       timestamps: true,
       underscored: true,
       freezeTableName: true,
     },
 
+    // India Standard Time
     timezone: '+05:30',
   }
 );
@@ -93,6 +98,10 @@ const connectDatabase = async () => {
     throw error;
   }
 };
+
+// --------------------------------------------------
+// Exports
+// --------------------------------------------------
 
 module.exports = {
   sequelize,
