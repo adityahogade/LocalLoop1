@@ -16,7 +16,18 @@ export default function BookService() {
   const [addresses, setAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState('');
   const [quantity, setQuantity] = useState(1);
-  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
+  
+  // First delivery selection: 'today', 'tomorrow', 'custom'
+  const todayDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+  const tomorrowDateObj = new Date();
+  tomorrowDateObj.setDate(tomorrowDateObj.getDate() + 1);
+  const tomorrowDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(tomorrowDateObj);
+
+  const [firstDeliveryChoice, setFirstDeliveryChoice] = useState('today');
+  const [startDate, setStartDate] = useState(todayDateStr);
+  
+  // Delivery slot state
+  const [deliverySlots, setDeliverySlots] = useState([{ slot: 'morning', custom_time: '08:00' }]);
   const [timeSlot, setTimeSlot] = useState('morning');
   const [customTime, setCustomTime] = useState('08:00');
   
@@ -131,13 +142,39 @@ export default function BookService() {
     fetchSlots();
   }, [service, startDate]);
 
-  // Handle plan change updates minimum quantity constraints
+  // Handle plan change updates minimum quantity & delivery slots
   useEffect(() => {
     const selectedPlan = plans.find(p => String(p.id) === String(selectedPlanId));
     if (selectedPlan) {
       setQuantity(prev => Math.max(prev, Number(selectedPlan.min_quantity || 1)));
+      const delivPerDay = Math.max(1, parseInt(selectedPlan.deliveries_per_day) || 1);
+      
+      setDeliverySlots(prev => {
+        const nextSlots = [];
+        for (let i = 0; i < delivPerDay; i++) {
+          if (prev[i]) {
+            nextSlots.push(prev[i]);
+          } else {
+            nextSlots.push({
+              slot: i === 0 ? 'morning' : i === 1 ? 'evening' : 'custom',
+              custom_time: i === 0 ? '07:00' : i === 1 ? '18:00' : '14:00'
+            });
+          }
+        }
+        return nextSlots;
+      });
     }
   }, [selectedPlanId, plans]);
+
+  // Handle first delivery choice changes
+  const handleFirstDeliveryChoice = (choice) => {
+    setFirstDeliveryChoice(choice);
+    if (choice === 'today') {
+      setStartDate(todayDateStr);
+    } else if (choice === 'tomorrow') {
+      setStartDate(tomorrowDateStr);
+    }
+  };
 
   const handleValidateCoupon = async () => {
     setCouponError(null);
@@ -181,9 +218,10 @@ export default function BookService() {
     setSubmitting(true);
     setError(null);
 
+    const isSubscription = service.type === 'subscription' || (service.type === 'both' && selectedPlanId);
+    const referenceType = isSubscription ? 'subscription_payment' : 'order';
+
     try {
-      const isSubscription = service.type === 'subscription';
-      const referenceType = isSubscription ? 'subscription_payment' : 'order';
       const selectedPlan = plans.find(p => String(p.id) === String(selectedPlanId));
       const basePrice = selectedPlan ? Number(selectedPlan.price) : Number(service.base_price || 0);
       const providerAmount = basePrice * quantity;
@@ -191,12 +229,12 @@ export default function BookService() {
       const serviceFee = Math.round(providerAmount * commissionPercent) / 100;
       const totalAmount = Math.max(0, Number((providerAmount + serviceFee - couponDiscount).toFixed(2)));
 
-      // 1. If mock payment is active and fails/cancels, initialize and verify payment first, then exit without creating subscription/order
+      // 1. If mock payment is set to fail or cancel
       if (import.meta.env.VITE_PAYMENT_PROVIDER === 'mock' && (mockPaymentMode === 'fail' || mockPaymentMode === 'cancel')) {
-        const idempotencyKey = `PAY-${Date.now()}-mock-checkout`;
+        const idempotencyKey = `PAY-MOCK-${Date.now()}`;
         const payRes = await customerApi.initiatePayment({
           reference_type: referenceType,
-          reference_id: 1, // positive dummy reference placeholder
+          reference_id: 1,
           idempotency_key: idempotencyKey,
           payment_method: 'razorpay',
           amount: totalAmount,
@@ -206,7 +244,6 @@ export default function BookService() {
           throw new Error('Failed to initialize payment transaction.');
         }
 
-        // Verify the payment as failed/cancelled
         await customerApi.verifyPayment({
           razorpay_order_id: payRes.data.razorpay_order_id,
           mock_status: mockPaymentMode === 'fail' ? 'failed' : 'cancelled',
@@ -214,7 +251,7 @@ export default function BookService() {
         return;
       }
 
-      // 2. Otherwise (Razorpay or successful mock payment):
+      // 2. Create Subscription or Order
       let createdEntityId = null;
 
       if (isSubscription) {
@@ -223,14 +260,19 @@ export default function BookService() {
         nextBillingDateObj.setDate(nextBillingDateObj.getDate() + cycleDays);
         const nextBillingDate = nextBillingDateObj.toISOString().slice(0, 10);
 
+        const primarySlot = deliverySlots[0]?.slot || timeSlot;
+        const primaryCustomTime = deliverySlots[0]?.custom_time || (timeSlot === 'custom' ? customTime : null);
+
         const subPayload = {
           provider_id: service.provider_id,
           service_id: service.id,
           service_plan_id: selectedPlanId,
           address_id: selectedAddressId,
           quantity,
-          delivery_time_slot: timeSlot,
-          custom_time: timeSlot === 'custom' ? customTime : null,
+          delivery_time_slot: primarySlot,
+          custom_time: primarySlot === 'custom' ? primaryCustomTime : null,
+          delivery_slots: deliverySlots,
+          first_delivery_choice: firstDeliveryChoice,
           start_date: startDate,
           next_billing_date: nextBillingDate,
         };
@@ -383,9 +425,17 @@ export default function BookService() {
     );
   }
 
+  const isSubscription = service?.type === 'subscription' || (service?.type === 'both' && selectedPlanId);
   const selectedPlan = plans.find(p => String(p.id) === String(selectedPlanId));
-  const basePrice = selectedPlan ? Number(selectedPlan.price) : Number(service?.base_price || 0);
-  const providerAmount = basePrice * quantity;
+  const unitBasePrice = Number(service?.base_price || 0);
+  const delivsPerDay = isSubscription ? Math.max(1, parseInt(selectedPlan?.deliveries_per_day) || 1) : 1;
+  const cycleDays = isSubscription ? Math.max(1, parseInt(selectedPlan?.billing_cycle_days) || 30) : 1;
+  const discountPct = isSubscription ? Math.min(100, Math.max(0, parseFloat(selectedPlan?.discount_percent) || 0)) : 0;
+
+  const totalDeliveries = isSubscription ? (delivsPerDay * cycleDays) : 1;
+  const grossTotal = isSubscription ? (unitBasePrice * quantity * totalDeliveries) : (unitBasePrice * quantity);
+  const planDiscount = isSubscription ? ((grossTotal * discountPct) / 100) : 0;
+  const providerAmount = Math.max(0, grossTotal - planDiscount);
   const commissionPercent = Number(selectedPlan?.commission_percent || service?.commission_percent || 10);
   const serviceFee = Math.round(providerAmount * commissionPercent) / 100;
   const totalAmount = Math.max(0, Number((providerAmount + serviceFee - couponDiscount).toFixed(2)));
@@ -403,11 +453,11 @@ export default function BookService() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
         {/* Form Settings */}
         <form onSubmit={handleCheckout} className="lg:col-span-8 space-y-6">
           {/* Address selection */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4 text-left">
+          <div className="bg-white border border-slate-200 rounded-3xl p-4 sm:p-6 shadow-sm space-y-4 text-left">
             <h3 className="text-xs font-black text-slate-800 flex items-center uppercase tracking-widest">
               <FiMapPin className="w-4 h-4 mr-2 text-blue-600 animate-bounce" />
               Delivery Address
@@ -425,7 +475,7 @@ export default function BookService() {
                 {addresses.map((addr) => (
                   <label
                     key={addr.id}
-                    className={`flex items-start p-4 border rounded-2xl cursor-pointer transition-all duration-200 ${
+                    className={`flex items-start p-3 sm:p-4 border rounded-2xl cursor-pointer transition-all duration-200 ${
                       selectedAddressId === addr.id
                         ? 'border-blue-600 bg-blue-50/20 shadow-sm'
                         : 'border-slate-200 hover:bg-slate-50/50'
@@ -453,41 +503,70 @@ export default function BookService() {
           </div>
 
           {/* Plan & Schedule Settings */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6 text-left">
+          <div className="bg-white border border-slate-200 rounded-3xl p-4 sm:p-6 shadow-sm space-y-6 text-left">
             <h3 className="text-xs font-black text-slate-800 flex items-center uppercase tracking-widest">
               <FiCalendar className="w-4 h-4 mr-2 text-blue-600" />
               Schedule Details
             </h3>
 
-            {service.type === 'subscription' && plans.length > 0 && (
+            {isSubscription && plans.length > 0 && (
               <div className="space-y-3">
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                  Subscription Duration
+                  Subscription Duration Plan
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {plans.map((p) => (
-                    <label
-                      key={p.id}
-                      className={`flex flex-col p-4 border rounded-2xl cursor-pointer transition-all duration-200 ${
-                        selectedPlanId === p.id
-                          ? 'border-blue-600 bg-blue-50/20 shadow-sm'
-                          : 'border-slate-200 hover:bg-slate-50/50'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-black text-slate-800 uppercase tracking-wider capitalize">{p.frequency} Plan</span>
-                        <input
-                          type="radio"
-                          name="plan"
-                          checked={selectedPlanId === p.id}
-                          onChange={() => setSelectedPlanId(p.id)}
-                          className="text-blue-600 focus:ring-blue-500"
-                        />
-                      </div>
-                      <span className="text-lg font-black text-slate-900 mt-2">₹{p.price}</span>
-                      <span className="text-[10px] font-bold text-slate-400 mt-1">Min Qty: {p.min_quantity} unit(s)</span>
-                    </label>
-                  ))}
+                  {plans.map((p) => {
+                    const pDelivPerDay = Math.max(1, parseInt(p.deliveries_per_day) || 1);
+                    const pCycleDays = Math.max(1, parseInt(p.billing_cycle_days) || 30);
+                    const pTotalDelivs = pDelivPerDay * pCycleDays;
+                    const pGrossPrice = Number(service.base_price || 0) * (p.min_quantity || 1) * pTotalDelivs;
+                    const isSelected = selectedPlanId === p.id;
+
+                    return (
+                      <label
+                        key={p.id}
+                        className={`flex flex-col p-4 border rounded-2xl cursor-pointer transition-all duration-200 ${
+                          isSelected
+                            ? 'border-blue-600 bg-blue-50/20 shadow-sm'
+                            : 'border-slate-200 hover:bg-slate-50/50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-slate-800 uppercase tracking-wider capitalize">{p.frequency} Plan</span>
+                          <div className="flex items-center gap-2">
+                            {Number(p.discount_percent) > 0 && (
+                              <span className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-[9px] font-black px-1.5 py-0.5 rounded">
+                                {p.discount_percent}% OFF
+                              </span>
+                            )}
+                            <input
+                              type="radio"
+                              name="plan"
+                              checked={isSelected}
+                              onChange={() => setSelectedPlanId(p.id)}
+                              className="text-blue-600 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-baseline gap-2 mt-2">
+                          <span className="text-lg font-black text-slate-900">₹{p.price}</span>
+                          {pGrossPrice > Number(p.price) && (
+                            <span className="text-xs text-slate-400 line-through font-semibold">
+                              ₹{pGrossPrice.toFixed(0)}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="text-[10px] text-slate-500 font-medium space-y-0.5 mt-1">
+                          <span className="text-blue-600 font-bold block">
+                            ⚡ {pDelivPerDay} {pDelivPerDay > 1 ? 'deliveries' : 'delivery'} / day • {pCycleDays} Days ({pTotalDelivs} deliveries)
+                          </span>
+                          <span className="text-slate-400 font-bold block">Min Qty: {p.min_quantity} unit(s)</span>
+                        </div>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -495,7 +574,7 @@ export default function BookService() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">
-                  Quantity
+                  Quantity ({service.unit || 'units'})
                 </label>
                 <input
                   type="number"
@@ -509,51 +588,152 @@ export default function BookService() {
                 />
               </div>
 
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">
-                  Start Date
-                </label>
-                <input
-                  type="date"
-                  min={new Date().toISOString().slice(0, 10)}
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-slate-250 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-650 text-xs font-semibold text-slate-855"
-                />
-              </div>
-            </div>
-
-            {service.type === 'subscription' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* First Delivery Date Options */}
+              {isSubscription ? (
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">
-                    Delivery Time Slot
+                    First Delivery Date
                   </label>
-                  <select
-                    value={timeSlot}
-                    onChange={(e) => setTimeSlot(e.target.value)}
-                    className="w-full px-3 py-2.5 border border-slate-250 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-650 text-xs font-semibold text-slate-850 bg-white"
-                  >
-                    <option value="morning">Morning (6:00 AM - 9:00 AM)</option>
-                    <option value="evening">Evening (5:00 PM - 8:00 PM)</option>
-                    <option value="custom">Custom Time</option>
-                  </select>
+                  <div className="grid grid-cols-3 gap-1.5 mb-2">
+                    {[
+                      { id: 'today', label: 'Today' },
+                      { id: 'tomorrow', label: 'Tomorrow' },
+                      { id: 'custom', label: 'Pick Date' }
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => handleFirstDeliveryChoice(opt.id)}
+                        className={`py-2 px-2 rounded-xl text-xs font-black transition-all ${
+                          firstDeliveryChoice === opt.id
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  {firstDeliveryChoice === 'custom' ? (
+                    <input
+                      type="date"
+                      min={todayDateStr}
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-250 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-650 text-xs font-semibold text-slate-855"
+                    />
+                  ) : (
+                    <p className="text-[11px] text-slate-500 font-bold px-1">
+                      Scheduled Date: <span className="text-slate-800">{new Date(`${startDate}T00:00:00+05:30`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                    </p>
+                  )}
                 </div>
+              ) : (
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">
+                    Booking Date
+                  </label>
+                  <input
+                    type="date"
+                    min={todayDateStr}
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-slate-250 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-650 text-xs font-semibold text-slate-855"
+                  />
+                </div>
+              )}
+            </div>
 
-                {timeSlot === 'custom' && (
+            {/* Delivery Slots Selection */}
+            {isSubscription ? (
+              delivsPerDay === 1 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
                   <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">
-                      Custom Time
+                      Delivery Time Slot
                     </label>
-                    <input
-                      type="time"
-                      value={customTime}
-                      onChange={(e) => setCustomTime(e.target.value)}
-                      className="w-full px-3 py-2.5 border border-slate-250 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-650 text-xs font-semibold text-slate-855"
-                    />
+                    <select
+                      value={deliverySlots[0]?.slot || timeSlot}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setDeliverySlots([{ slot: val, custom_time: deliverySlots[0]?.custom_time || '08:00' }]);
+                        setTimeSlot(val);
+                      }}
+                      className="w-full px-3 py-2.5 border border-slate-250 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-650 text-xs font-semibold text-slate-850 bg-white"
+                    >
+                      <option value="morning">Morning (6:00 AM - 9:00 AM)</option>
+                      <option value="evening">Evening (5:00 PM - 8:00 PM)</option>
+                      <option value="custom">Custom Time</option>
+                    </select>
                   </div>
-                )}
-              </div>
+
+                  {(deliverySlots[0]?.slot === 'custom' || timeSlot === 'custom') && (
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">
+                        Custom Time
+                      </label>
+                      <input
+                        type="time"
+                        value={deliverySlots[0]?.custom_time || customTime}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setDeliverySlots([{ slot: 'custom', custom_time: val }]);
+                          setCustomTime(val);
+                        }}
+                        className="w-full px-3 py-2.5 border border-slate-250 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-650 text-xs font-semibold text-slate-855"
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3 pt-2 border-t border-slate-100">
+                  <div className="flex justify-between items-center">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                      Daily Delivery Schedules ({delivsPerDay} deliveries per day)
+                    </label>
+                    <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
+                      Multi-Delivery Active
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {deliverySlots.map((slotObj, idx) => (
+                      <div key={idx} className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-2 text-xs">
+                        <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider block">
+                          Delivery {idx + 1} ({idx === 0 ? 'Morning Shift' : idx === 1 ? 'Evening Shift' : `Shift ${idx + 1}`})
+                        </span>
+                        <select
+                          value={slotObj.slot}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const updated = [...deliverySlots];
+                            updated[idx] = { ...updated[idx], slot: val };
+                            setDeliverySlots(updated);
+                          }}
+                          className="w-full px-2.5 py-2 border border-slate-250 rounded-xl text-xs font-semibold bg-white"
+                        >
+                          <option value="morning">Morning (6:00 AM - 9:00 AM)</option>
+                          <option value="evening">Evening (5:00 PM - 8:00 PM)</option>
+                          <option value="custom">Custom Time</option>
+                        </select>
+                        {slotObj.slot === 'custom' && (
+                          <input
+                            type="time"
+                            value={slotObj.custom_time || '14:00'}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const updated = [...deliverySlots];
+                              updated[idx] = { ...updated[idx], custom_time: val };
+                              setDeliverySlots(updated);
+                            }}
+                            className="w-full px-2.5 py-1.5 border border-slate-250 rounded-xl text-xs font-semibold bg-white mt-1"
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
             ) : (
               service.category?.slug === 'cleaning' && (
                 <div className="space-y-6 border-t border-slate-100 pt-6">
@@ -644,9 +824,9 @@ export default function BookService() {
           </div>
         </form>
 
-        {/* Pricing Summary Card */}
+        {/* Checkout Summary Side Panel */}
         <div className="lg:col-span-4 space-y-6">
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-5 text-left">
+          <div className="bg-white border border-slate-200 rounded-3xl p-4 sm:p-6 shadow-sm space-y-5 text-left">
             <h3 className="text-xs font-black text-slate-800 flex items-center uppercase tracking-widest border-b border-slate-100 pb-3">
               <FiShoppingBag className="w-4 h-4 mr-2 text-blue-600" />
               Order Summary
@@ -658,12 +838,34 @@ export default function BookService() {
                 <span className="text-slate-800 font-black bg-slate-100 px-2 py-0.5 rounded border border-slate-150">Qty {quantity}</span>
               </div>
               <div className="flex justify-between">
+                <span className="text-slate-500 font-bold">Base Unit Price</span>
+                <span className="text-slate-800 font-bold">₹{unitBasePrice.toFixed(2)} /{service.unit || 'unit'}</span>
+              </div>
+              {isSubscription && (
+                <div className="flex justify-between text-blue-600 font-bold text-[11px]">
+                  <span>Total Deliveries in Cycle</span>
+                  <span>{totalDeliveries} Deliveries</span>
+                </div>
+              )}
+              {isSubscription && discountPct > 0 && (
+                <div className="flex justify-between text-slate-500">
+                  <span>Gross Total</span>
+                  <span className="font-semibold text-slate-700">₹{grossTotal.toFixed(2)}</span>
+                </div>
+              )}
+              {isSubscription && discountPct > 0 && (
+                <div className="flex justify-between text-emerald-600 font-bold">
+                  <span>Plan Discount ({discountPct}%)</span>
+                  <span>-₹{planDiscount.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
                 <span className="text-slate-500 font-bold">Provider Price</span>
-                <span className="text-slate-805 font-black">₹{providerAmount.toFixed(2)}</span>
+                <span className="text-slate-800 font-black">₹{providerAmount.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-bold">Service Fee ({commissionPercent}%)</span>
-                <span className="text-slate-805 font-black">₹{serviceFee.toFixed(2)}</span>
+                <span className="text-slate-800 font-black">₹{serviceFee.toFixed(2)}</span>
               </div>
               {couponDiscount > 0 && (
                 <div className="flex justify-between text-green-600 font-bold bg-green-50 px-2.5 py-1.5 rounded-xl border border-green-100">

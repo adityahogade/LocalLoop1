@@ -47,13 +47,51 @@ const create = async (userId, data) => sequelize.transaction(async (transaction)
   if (data.delivery_time_slot === "custom" && !data.custom_time) throw new AppError("Custom delivery time is required", 400, "CUSTOM_TIME_REQUIRED");
   const overlap = await CustomerSubscription.findOne({ where: { customer_id: customer.id, service_id: service.id, status: { [Op.in]: ["active", "paused", "vacation"] }, [Op.or]: [{ end_date: null }, { end_date: { [Op.gte]: data.start_date } }] }, transaction });
   if (overlap) throw new AppError("An active subscription already exists for this service", 409, "SUBSCRIPTION_OVERLAP");
-  const subscription = await CustomerSubscription.create({ ...data, customer_id: customer.id }, { transaction });
+
+  // Normalize delivery slots
+  let normalizedSlots = [];
+  if (Array.isArray(data.delivery_slots) && data.delivery_slots.length > 0) {
+    normalizedSlots = data.delivery_slots.map((s, idx) => {
+      if (typeof s === "string") return { slot: s, custom_time: null, slot_index: idx + 1 };
+      return { slot: s.slot || "morning", custom_time: s.custom_time || null, slot_index: idx + 1 };
+    });
+  } else {
+    normalizedSlots = [{
+      slot: data.delivery_time_slot || "morning",
+      custom_time: data.custom_time || null,
+      slot_index: 1
+    }];
+  }
+
+  const primarySlot = normalizedSlots[0]?.slot || data.delivery_time_slot || "morning";
+  const primaryCustomTime = normalizedSlots[0]?.custom_time || data.custom_time || null;
+
+  const subscription = await CustomerSubscription.create({
+    ...data,
+    delivery_time_slot: primarySlot,
+    custom_time: primaryCustomTime,
+    delivery_slots: normalizedSlots,
+    customer_id: customer.id
+  }, { transaction });
+
+  const deliveriesPerDay = Number(plan.deliveries_per_day || 1);
   const cycleDays = Number(plan.billing_cycle_days || 30);
+  const discountPercent = Number(plan.discount_percent || 0);
+  const basePrice = Number(service.base_price || (plan.price ? Number(plan.price) / (deliveriesPerDay * cycleDays) : 0));
+  const quantity = Number(data.quantity || 1);
+
+  // Backend Pricing Formula:
+  // grossPrice = basePrice * quantity * deliveriesPerDay * billingCycleDays
+  // discountAmount = grossPrice * discountPercent / 100
+  // providerAmount = grossPrice - discountAmount
+  const grossPrice = basePrice * quantity * deliveriesPerDay * cycleDays;
+  const discountAmount = (grossPrice * discountPercent) / 100;
+  const providerAmount = Math.max(0, Number((grossPrice - discountAmount).toFixed(2)));
+
   const startDateObj = new Date(data.start_date);
   const periodEnd = new Date(startDateObj);
   periodEnd.setUTCDate(startDateObj.getUTCDate() + cycleDays - 1);
 
-  const providerAmount = Number(plan.price) * Number(data.quantity);
   const { percent } = await commissionService.commissionPercentFor({
     serviceId: service.id,
     categoryId: service.category_id,
@@ -80,6 +118,21 @@ const ensureDeliveriesForSubscription = async (subscription, transaction) => {
   const plan = subscription.servicePlan || await ServicePlan.findByPk(subscription.service_plan_id, { transaction });
   const cycleDays = Number(plan?.billing_cycle_days || 30);
   const frequency = (plan?.frequency || "daily").toLowerCase();
+  const deliveriesPerDay = Number(plan?.deliveries_per_day || 1);
+
+  // Parse configured delivery slots
+  let slots = [];
+  if (Array.isArray(subscription.delivery_slots) && subscription.delivery_slots.length > 0) {
+    slots = subscription.delivery_slots.map((s, idx) => typeof s === "string" ? { slot: s, slot_index: idx + 1 } : { slot: s.slot || "morning", slot_index: idx + 1 });
+  } else {
+    slots = [{ slot: subscription.delivery_time_slot || "morning", slot_index: 1 }];
+  }
+
+  // Ensure slots count matches deliveriesPerDay
+  while (slots.length < deliveriesPerDay) {
+    const nextSlot = slots.length === 1 ? "evening" : `slot_${slots.length + 1}`;
+    slots.push({ slot: nextSlot, slot_index: slots.length + 1 });
+  }
 
   const startDateStr = subscription.start_date || new Date().toISOString().slice(0, 10);
   const [sy, sm, sd] = startDateStr.split('-').map(Number);
@@ -115,22 +168,43 @@ const ensureDeliveriesForSubscription = async (subscription, transaction) => {
     }
 
     if (shouldDeliver) {
-      const existing = await SubscriptionDelivery.findOne({
-        where: { subscription_id: subscription.id, delivery_date: dStr },
-        transaction
-      });
-      if (!existing) {
-        await SubscriptionDelivery.create({
-          subscription_id: subscription.id,
-          delivery_date: dStr,
-          status: "scheduled",
-          quantity: subscription.quantity || 1,
-        }, { transaction });
+      for (const slotObj of slots) {
+        const slotName = slotObj.slot || "morning";
+        const existing = await SubscriptionDelivery.findOne({
+          where: {
+            subscription_id: subscription.id,
+            delivery_date: dStr,
+            delivery_slot: slotName
+          },
+          transaction
+        });
+        if (!existing) {
+          // Also check fallback where delivery_slot was null for old single delivery records
+          const existingAny = await SubscriptionDelivery.findOne({
+            where: {
+              subscription_id: subscription.id,
+              delivery_date: dStr,
+              delivery_slot: null
+            },
+            transaction
+          });
+          if (existingAny && slots.length === 1) {
+            await existingAny.update({ delivery_slot: slotName }, { transaction });
+          } else if (!existingAny) {
+            await SubscriptionDelivery.create({
+              subscription_id: subscription.id,
+              delivery_date: dStr,
+              delivery_slot: slotName,
+              status: "scheduled",
+              quantity: subscription.quantity || 1,
+            }, { transaction });
+          }
+        }
       }
     }
 
     curr.setUTCDate(curr.getUTCDate() + 1);
-    if (curr > targetEndDate && curr > todayDate) break;
+    if (curr >= targetEndDate && curr > todayDate) break;
   }
 };
 
@@ -142,12 +216,27 @@ const getDeliveryTracking = async (subscription, transaction, isCustomer = false
   
   const allDeliveries = await SubscriptionDelivery.findAll({
     where: { subscription_id: subscription.id },
-    order: [["delivery_date", "ASC"]],
+    order: [["delivery_date", "ASC"], ["id", "ASC"]],
     transaction
   });
 
-  const todayDelivery = allDeliveries.find(d => d.delivery_date === todayStr) || null;
-  const todayStatus = todayDelivery ? todayDelivery.status.toUpperCase() : "NO_DELIVERY";
+  const todayDeliveries = allDeliveries.filter(d => d.delivery_date === todayStr);
+  const todayDelivery = todayDeliveries[0] || null;
+  
+  let todayStatus = "NO_DELIVERY";
+  if (todayDeliveries.length > 0) {
+    if (todayDeliveries.every(d => d.status === "delivered")) {
+      todayStatus = "DELIVERED";
+    } else if (todayDeliveries.some(d => d.status === "out_for_delivery")) {
+      todayStatus = "OUT_FOR_DELIVERY";
+    } else if (todayDeliveries.some(d => d.status === "ready")) {
+      todayStatus = "READY";
+    } else if (todayDeliveries.some(d => d.status === "scheduled")) {
+      todayStatus = "SCHEDULED";
+    } else {
+      todayStatus = todayDeliveries[0].status.toUpperCase();
+    }
+  }
 
   const totalDeliveries = allDeliveries.length;
   const completedDeliveries = allDeliveries.filter(d => d.status === "delivered").length;
@@ -184,16 +273,20 @@ const getDeliveryTracking = async (subscription, transaction, isCustomer = false
     }
   }
 
+  const mapDelivery = (d) => ({
+    id: d.id,
+    delivery_date: d.delivery_date,
+    delivery_slot: d.delivery_slot,
+    status: d.status,
+    quantity: d.quantity,
+    delivered_at: d.delivered_at,
+    notes: d.notes,
+    ...(isCustomer && d.status === "out_for_delivery" ? { delivery_otp: d.otp_code } : {})
+  });
+
   return {
-    today_delivery: todayDelivery ? {
-      id: todayDelivery.id,
-      delivery_date: todayDelivery.delivery_date,
-      status: todayDelivery.status,
-      quantity: todayDelivery.quantity,
-      delivered_at: todayDelivery.delivered_at,
-      notes: todayDelivery.notes,
-      ...(isCustomer && todayDelivery.status === "out_for_delivery" ? { delivery_otp: todayDelivery.otp_code } : {})
-    } : null,
+    today_delivery: todayDelivery ? mapDelivery(todayDelivery) : null,
+    today_deliveries: todayDeliveries.map(mapDelivery),
     today_delivery_status: todayStatus,
     total_deliveries: totalDeliveries,
     completed_deliveries: completedDeliveries,
@@ -202,14 +295,7 @@ const getDeliveryTracking = async (subscription, transaction, isCustomer = false
     remaining_days: remainingDays,
     next_delivery_date: nextDeliveryDate,
     next_delivery_label: nextDeliveryLabel,
-    deliveries: allDeliveries.map(d => ({
-      id: d.id,
-      delivery_date: d.delivery_date,
-      status: d.status,
-      quantity: d.quantity,
-      delivered_at: d.delivered_at,
-      notes: d.notes
-    }))
+    deliveries: allDeliveries.map(mapDelivery)
   };
 };
 
@@ -387,7 +473,16 @@ const renew = async (userId, id) => sequelize.transaction(async (transaction) =>
   const due = start.toISOString().slice(0, 10);
   const existing = await SubscriptionPayment.findOne({ where: { subscription_id: subscription.id, billing_period_start: due }, transaction });
   if (existing) return existing;
-  const providerAmount = Number(plan.price) * Number(subscription.quantity);
+  const service = subscription.service || (Service?.findByPk ? await Service.findByPk(subscription.service_id, { transaction }) : null);
+  const deliveriesPerDay = Number(plan.deliveries_per_day || 1);
+  const cycleDays = Number(plan.billing_cycle_days || 30);
+  const discountPercent = Number(plan.discount_percent || 0);
+  const basePrice = Number(service?.base_price || (plan.price ? Number(plan.price) / (deliveriesPerDay * cycleDays) : 0));
+  const quantity = Number(subscription.quantity || 1);
+  const grossPrice = basePrice * quantity * deliveriesPerDay * cycleDays;
+  const discountAmount = (grossPrice * discountPercent) / 100;
+  const providerAmount = Math.max(0, Number((grossPrice - discountAmount).toFixed(2)));
+
   const { percent } = await commissionService.commissionPercentFor({
     serviceId: subscription.service_id,
     categoryId: subscription.service?.category_id,

@@ -95,14 +95,14 @@ export default function AdminSupport() {
   if (error) return <div className="p-4 bg-red-50 text-red-700 rounded-lg">{error}</div>;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 min-h-[calc(100vh-12rem)]">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 min-h-[calc(100vh-12rem)] text-left">
       {/* Sidebar - Tickets List */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4 flex flex-col h-full">
+      <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-sm space-y-4 flex flex-col h-full min-w-0">
         <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-          <h3 className="text-md font-bold text-gray-800">Support Inquiries</h3>
+          <h3 className="text-sm sm:text-base font-bold text-gray-800">Support Inquiries</h3>
         </div>
 
-        <div className="flex-grow overflow-y-auto space-y-2 max-h-[500px]">
+        <div className="flex-grow overflow-y-auto space-y-2 max-h-[300px] md:max-h-[500px]">
           {tickets.length === 0 ? (
             <p className="text-xs text-gray-400 text-center py-6">No support tickets found.</p>
           ) : (
@@ -134,16 +134,16 @@ export default function AdminSupport() {
       </div>
 
       {/* Main Panel - Messages Thread */}
-      <div className="md:col-span-2 bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col h-full min-h-[500px]">
+      <div className="md:col-span-2 bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col h-full min-h-[400px] sm:min-h-[500px] min-w-0">
         {activeTicket ? (
           <>
-            <div className="flex justify-between items-center px-6 py-4 bg-gray-50 border-b border-gray-100">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-gray-800">{activeTicket.subject}</h3>
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 px-4 sm:px-6 py-3 sm:py-4 bg-gray-50 border-b border-gray-100">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-xs sm:text-sm font-bold text-gray-800 truncate">{activeTicket.subject}</h3>
                   <StatusBadge status={activeTicket.status} />
                 </div>
-                <p className="text-[10px] text-gray-400 mt-1 font-mono font-semibold">
+                <p className="text-[10px] text-gray-400 mt-0.5 sm:mt-1 font-mono font-semibold truncate">
                   CODE: {activeTicket.ticket_code} | Priority: {activeTicket.priority} | User ID: {activeTicket.user_id}
                 </p>
               </div>
@@ -151,14 +151,14 @@ export default function AdminSupport() {
               {activeTicket.status !== 'resolved' && activeTicket.status !== 'closed' && (
                 <button
                   onClick={() => handleResolveTicket(activeTicket.id)}
-                  className="bg-green-600 hover:bg-green-750 text-white px-3 py-1.5 rounded text-xs font-bold shadow-sm"
+                  className="bg-green-600 hover:bg-green-750 text-white px-3 py-1.5 rounded text-xs font-bold shadow-sm self-start sm:self-auto shrink-0"
                 >
                   Mark Resolved
                 </button>
               )}
             </div>
 
-            <div className="flex-grow p-6 overflow-y-auto max-h-[350px] space-y-4">
+            <div className="flex-grow p-4 sm:p-6 overflow-y-auto max-h-[350px] space-y-4">
               {loadingMessages ? (
                 <Skeleton count={3} />
               ) : (
@@ -169,12 +169,12 @@ export default function AdminSupport() {
                       key={msg.id || index}
                       className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
                     >
-                      <div className={`max-w-[75%] rounded-2xl p-4 text-xs font-semibold leading-normal shadow-sm ${
+                      <div className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-3 sm:p-4 text-xs font-semibold leading-normal shadow-sm ${
                         isMe
                           ? 'bg-blue-600 text-white rounded-br-none'
                           : 'bg-gray-100 text-gray-800 rounded-bl-none'
                       }`}>
-                        <p>{msg.message}</p>
+                        <p className="break-words">{msg.message}</p>
                         <span className={`block text-[9px] text-right mt-1.5 font-medium ${
                           isMe ? 'text-blue-200' : 'text-gray-400'
                         }`}>

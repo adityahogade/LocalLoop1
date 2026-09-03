@@ -579,70 +579,78 @@ export default function ProviderBookings() {
                             </div>
                           </div>
 
-                          {/* Actions for Today's Delivery */}
-                          {sub.delivery_tracking.today_delivery && (
-                            <div className="flex items-center gap-2 pt-1 lg:pt-0">
-                              {sub.delivery_tracking.today_delivery.status === 'scheduled' && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleUpdateSubDelivery(sub.delivery_tracking.today_delivery.id, 'ready')}
-                                  disabled={updatingDelivery}
-                                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black tracking-wider uppercase transition-all shadow-sm shadow-indigo-600/20 active:scale-[0.98] cursor-pointer flex items-center gap-1.5"
-                                >
-                                  <FiCheck className="w-4 h-4" />
-                                  MARK READY
-                                </button>
-                              )}
-                              {sub.delivery_tracking.today_delivery.status === 'ready' && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleUpdateSubDelivery(sub.delivery_tracking.today_delivery.id, 'out_for_delivery')}
-                                  disabled={updatingDelivery}
-                                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black tracking-wider uppercase transition-all shadow-sm shadow-blue-600/20 active:scale-[0.98] cursor-pointer flex items-center gap-1.5"
-                                >
-                                  <FiTruck className="w-4 h-4" />
-                                  OUT FOR DELIVERY
-                                </button>
-                              )}
-                              {sub.delivery_tracking.today_delivery.status === 'out_for_delivery' && (
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 bg-blue-50/90 p-2.5 rounded-xl border border-blue-200">
-                                  <span className="text-[11px] font-black text-blue-800 uppercase tracking-wider pl-1">
-                                    Waiting for customer OTP:
-                                  </span>
-                                  <div className="flex items-center gap-2">
-                                    <input
-                                      type="text"
-                                      placeholder="OTP"
-                                      maxLength={6}
-                                      value={otpInputs[sub.delivery_tracking.today_delivery.id] || ''}
-                                      onChange={(e) => setOtpInputs({ ...otpInputs, [sub.delivery_tracking.today_delivery.id]: e.target.value })}
-                                      className="w-20 px-2.5 py-1.5 text-xs font-mono font-black bg-white border border-blue-300 rounded-lg text-slate-900 text-center tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-2xs"
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() => handleUpdateSubDelivery(sub.delivery_tracking.today_delivery.id, 'delivered', otpInputs[sub.delivery_tracking.today_delivery.id])}
-                                      disabled={updatingDelivery || !otpInputs[sub.delivery_tracking.today_delivery.id]}
-                                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-xs font-black tracking-wider uppercase transition-all shadow-xs cursor-pointer shrink-0"
-                                    >
-                                      VERIFY OTP & COMPLETE DELIVERY
-                                    </button>
+                          {/* Actions for Today's Delivery (Multi-slot support) */}
+                          {sub.delivery_tracking.today_deliveries && sub.delivery_tracking.today_deliveries.length > 0 ? (
+                            <div className="space-y-3 pt-2 w-full">
+                              <div className="flex flex-col gap-2.5">
+                                {sub.delivery_tracking.today_deliveries.map((deliv, idx) => (
+                                  <div key={deliv.id} className="bg-white border border-slate-200/90 rounded-2xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                                    <div className="flex items-center gap-2">
+                                      <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
+                                      <div>
+                                        <span className="text-xs font-black text-slate-800 uppercase tracking-wider block">
+                                          {deliv.delivery_slot || `Shift ${idx + 1}`}
+                                        </span>
+                                        <span className="text-[10px] text-slate-400 font-bold uppercase">
+                                          Status: <span className="text-blue-600 font-black">{deliv.status}</span>
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                      {deliv.status === 'scheduled' && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleUpdateSubDelivery(deliv.id, 'ready')}
+                                          disabled={updatingDelivery}
+                                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[11px] font-black tracking-wider uppercase transition-all shadow-sm active:scale-[0.98] cursor-pointer flex items-center gap-1"
+                                        >
+                                          <FiCheck className="w-3.5 h-3.5" />
+                                          MARK READY
+                                        </button>
+                                      )}
+                                      {deliv.status === 'ready' && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleUpdateSubDelivery(deliv.id, 'out_for_delivery')}
+                                          disabled={updatingDelivery}
+                                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[11px] font-black tracking-wider uppercase transition-all shadow-sm active:scale-[0.98] cursor-pointer flex items-center gap-1"
+                                        >
+                                          <FiTruck className="w-3.5 h-3.5" />
+                                          OUT FOR DELIVERY
+                                        </button>
+                                      )}
+                                      {deliv.status === 'out_for_delivery' && (
+                                        <div className="flex items-center gap-2 bg-blue-50/90 p-1.5 rounded-xl border border-blue-200">
+                                          <input
+                                            type="text"
+                                            placeholder="OTP"
+                                            maxLength={6}
+                                            value={otpInputs[deliv.id] || ''}
+                                            onChange={(e) => setOtpInputs({ ...otpInputs, [deliv.id]: e.target.value })}
+                                            className="w-16 px-2 py-1 text-xs font-mono font-black bg-white border border-blue-300 rounded-lg text-slate-900 text-center tracking-widest focus:outline-none shadow-2xs"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => handleUpdateSubDelivery(deliv.id, 'delivered', otpInputs[deliv.id])}
+                                            disabled={updatingDelivery || !otpInputs[deliv.id]}
+                                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-[10px] font-black tracking-wider uppercase transition-all shadow-xs cursor-pointer shrink-0"
+                                          >
+                                            VERIFY & DELIVER
+                                          </button>
+                                        </div>
+                                      )}
+                                      {deliv.status === 'delivered' && (
+                                        <span className="text-xs font-black text-emerald-700 flex items-center gap-1">
+                                          <FiCheckCircle className="w-4 h-4 text-emerald-600" /> Delivered
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
-                              {sub.delivery_tracking.today_delivery.status === 'delivered' && (
-                                <div className="text-right">
-                                  <span className="text-xs font-black text-emerald-700 flex items-center gap-1">
-                                    <FiCheckCircle className="w-4 h-4 text-emerald-600" /> Delivered Today
-                                  </span>
-                                  {sub.delivery_tracking.today_delivery.delivered_at && (
-                                    <span className="text-[11px] text-slate-500 font-bold block mt-0.5">
-                                      Delivered at {new Date(sub.delivery_tracking.today_delivery.delivered_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
+                                ))}
+                              </div>
                             </div>
-                          )}
+                          ) : null}
                         </div>
 
                         {/* Subscription Progress Statistics */}

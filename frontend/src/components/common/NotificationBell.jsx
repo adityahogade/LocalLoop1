@@ -89,7 +89,7 @@ export default function NotificationBell() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden z-50">
+        <div className="absolute right-0 mt-2 w-[calc(100vw-2.5rem)] max-w-xs sm:w-80 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden z-50">
           <div className="flex justify-between items-center px-4 py-3 bg-gray-50 border-b border-gray-100">
             <h3 className="text-sm font-semibold text-gray-700">
               {t('notifications', { ns: 'customer' })}

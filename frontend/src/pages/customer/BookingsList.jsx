@@ -95,10 +95,10 @@ export default function BookingsList() {
       ) : (
         <div className="grid grid-cols-1 gap-6">
           {orders.map((order) => (
-            <div key={order.id} className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4 hover:shadow-md transition-shadow duration-300 text-left">
+            <div key={order.id} className="bg-white border border-slate-200 rounded-3xl p-4 sm:p-6 shadow-sm space-y-4 hover:shadow-md transition-shadow duration-300 text-left">
               <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-100 pb-4">
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2">
+                <div className="space-y-1.5 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[9px] font-mono font-black text-slate-400 bg-slate-50 border border-slate-150 px-2 py-0.5 rounded-full uppercase tracking-wider">
                       {order.order_number}
                     </span>
@@ -106,12 +106,12 @@ export default function BookingsList() {
                       <StatusBadge status={order.status} />
                     </div>
                   </div>
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider truncate">
                     Provider: <span className="text-slate-800 font-extrabold normal-case">{order.provider?.business_name}</span>
                   </h3>
                 </div>
 
-                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider">
+                <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-wider">
                   {['pending', 'confirmed'].includes(order.status) && (
                     <button
                       onClick={() => handleCancel(order.id)}
@@ -137,8 +137,8 @@ export default function BookingsList() {
               </div>
 
               {/* Order Items Table */}
-              <div className="border border-slate-150 rounded-2xl overflow-hidden shadow-inner bg-slate-50/20">
-                <table className="w-full text-[11px] text-left text-slate-650">
+              <div className="border border-slate-150 rounded-2xl overflow-x-auto shadow-inner bg-slate-50/20">
+                <table className="w-full text-[11px] text-left text-slate-650 min-w-[300px]">
                   <thead className="bg-slate-50 text-slate-400 uppercase tracking-widest font-black text-[9px] border-b border-slate-150">
                     <tr>
                       <th className="px-4.5 py-3">Service Item</th>

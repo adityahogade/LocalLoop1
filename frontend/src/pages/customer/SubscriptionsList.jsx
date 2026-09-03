@@ -173,68 +173,63 @@ export default function SubscriptionsList() {
       ) : (
         <div className="grid grid-cols-1 gap-6">
           {subscriptions.map((sub) => (
-            <div key={sub.id} className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4 hover:shadow-md transition-shadow duration-300 text-left">
-              <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-4 border-b border-slate-100 pb-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl">🥛</span>
-                    <h3 className="text-base font-black text-slate-800 tracking-tight">{sub.service?.name}</h3>
-                    <div className="scale-90">
-                      <StatusBadge status={sub.status} />
-                    </div>
+            <div
+              key={sub.id}
+              className="bg-white border border-slate-200/80 rounded-3xl p-4 sm:p-6 shadow-xs hover:shadow-sm transition-all duration-300 space-y-5 text-left"
+            >
+              {/* Header Info */}
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-100 pb-4">
+                <div className="space-y-1.5 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-base font-black text-slate-800 tracking-tight">
+                      {sub.service?.name}
+                    </span>
+                    <StatusBadge status={sub.status} />
                   </div>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider pl-8">
-                    Provider: {sub.provider?.business_name}
-                  </p>
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider truncate">
+                    Provider: <span className="text-slate-700 font-extrabold normal-case">{sub.provider?.business_name || `Provider #${sub.provider_id}`}</span>
+                  </h3>
                 </div>
-                
-                {/* Utilities Controls */}
-                <div className="flex flex-wrap gap-1.5 text-[9px] font-black uppercase tracking-wider">
+
+                {/* Sub Action Buttons */}
+                <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-wider">
                   {sub.status === 'active' && (
                     <>
                       <button
                         onClick={() => handlePause(sub.id)}
-                        className="bg-amber-50 text-amber-700 border border-amber-100 hover:bg-amber-100/55 px-3 py-2 rounded-xl transition-all cursor-pointer font-black"
+                        className="bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100/60 px-3 py-2 rounded-xl transition-all cursor-pointer font-black"
                       >
                         Pause
                       </button>
                       <button
-                        onClick={() => {
-                          setSelectedSub(sub);
-                          setSkipModalOpen(true);
-                        }}
-                        className="bg-purple-50 text-purple-700 border border-purple-100 hover:bg-purple-100/55 px-3 py-2 rounded-xl transition-all cursor-pointer font-black"
+                        onClick={() => handleOpenSkip(sub)}
+                        className="bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100/60 px-3 py-2 rounded-xl transition-all cursor-pointer font-black"
                       >
                         Skip Date
                       </button>
                       <button
-                        onClick={() => {
-                          setSelectedSub(sub);
-                          setVacationModalOpen(true);
-                        }}
-                        className="bg-indigo-50 text-indigo-700 border border-indigo-100 hover:bg-indigo-100/55 px-3 py-2 rounded-xl transition-all cursor-pointer font-black"
+                        onClick={() => handleOpenVacation(sub)}
+                        className="bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100/60 px-3 py-2 rounded-xl transition-all cursor-pointer font-black"
                       >
                         Vacation
+                      </button>
+                      <button
+                        onClick={() => handleCancelClick(sub)}
+                        className="bg-red-50 text-red-700 border border-red-100 hover:bg-red-100/50 px-3 py-2 rounded-xl transition-all cursor-pointer font-black"
+                      >
+                        Cancel
                       </button>
                     </>
                   )}
                   {sub.status === 'paused' && (
                     <button
                       onClick={() => handleResume(sub.id)}
-                      className="bg-green-50 text-green-700 border border-green-100 hover:bg-green-100/55 px-3 py-2 rounded-xl transition-all cursor-pointer font-black"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl shadow-md shadow-emerald-500/10 active:scale-[0.98] transition-all cursor-pointer font-black"
                     >
                       Resume
                     </button>
                   )}
-                  {['active', 'paused', 'vacation'].includes(sub.status) && (
-                    <button
-                      onClick={() => handleCancelClick(sub)}
-                      className="bg-red-50 text-red-700 border border-red-100 hover:bg-red-100/55 px-3 py-2 rounded-xl transition-all cursor-pointer font-black"
-                    >
-                      Cancel
-                    </button>
-                  )}
-                  {['expired', 'cancelled'].includes(sub.status) && (
+                  {sub.status === 'expired' && (
                     <button
                       onClick={() => handleRenew(sub.id)}
                       className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl shadow-md shadow-blue-500/10 active:scale-[0.98] transition-all cursor-pointer font-black"
@@ -307,7 +302,32 @@ export default function SubscriptionsList() {
                   </div>
 
                   {/* Delivery OTP for Customer */}
-                  {sub.delivery_tracking.today_delivery?.delivery_otp && (
+                  {sub.delivery_tracking.today_deliveries && sub.delivery_tracking.today_deliveries.length > 1 ? (
+                    <div className="space-y-2 pt-2 border-t border-blue-200/50">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-blue-700 block">
+                        Today's Scheduled Shifts ({sub.delivery_tracking.today_deliveries.length} Deliveries)
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {sub.delivery_tracking.today_deliveries.map((deliv, idx) => (
+                          <div key={deliv.id || idx} className="bg-white/90 border border-blue-200/80 rounded-xl p-2.5 flex items-center justify-between text-xs">
+                            <div>
+                              <span className="font-extrabold text-slate-800 capitalize block">
+                                {deliv.delivery_slot || `Shift ${idx + 1}`}
+                              </span>
+                              <span className="text-[10px] text-slate-500 font-bold uppercase">
+                                Status: <span className="text-blue-600">{deliv.status}</span>
+                              </span>
+                            </div>
+                            {deliv.delivery_otp && (
+                              <div className="bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg text-amber-900 font-mono font-black text-xs">
+                                OTP: {deliv.delivery_otp}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : sub.delivery_tracking.today_delivery?.delivery_otp ? (
                     <div className="bg-amber-50/90 border border-amber-200/80 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-xs">
                       <div className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping shrink-0" />
@@ -324,7 +344,7 @@ export default function SubscriptionsList() {
                         {sub.delivery_tracking.today_delivery.delivery_otp}
                       </div>
                     </div>
-                  )}
+                  ) : null}
 
                   {/* Cycle Metrics */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-semibold">
@@ -357,8 +377,8 @@ export default function SubscriptionsList() {
                   <span className="font-extrabold text-slate-800 text-xs">{sub.quantity} {sub.service?.unit}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block mb-0.5 uppercase tracking-wider">Price (Per Unit)</span>
-                  <span className="font-extrabold text-slate-800 text-xs">₹{Number(sub.servicePlan?.price || 0).toFixed(2)}</span>
+                  <span className="text-slate-400 block mb-0.5 uppercase tracking-wider">Daily Deliveries</span>
+                  <span className="font-extrabold text-slate-800 text-xs">{sub.servicePlan?.deliveries_per_day || 1} / day</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block mb-0.5 uppercase tracking-wider">Cycle Frequency</span>
@@ -379,8 +399,8 @@ export default function SubscriptionsList() {
 
       {/* Cancel Confirmation Modal */}
       {cancelModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-5 text-center">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
+          <div className="bg-white border border-slate-200 rounded-3xl p-4 sm:p-6 max-w-sm w-full shadow-2xl space-y-4 sm:space-y-5 text-center">
             <h3 className="text-base font-black text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-3">
               Cancel Subscription?
             </h3>
@@ -411,8 +431,8 @@ export default function SubscriptionsList() {
 
       {/* Skip Date Modal */}
       {skipModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 text-left">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 max-w-md w-full shadow-2xl space-y-4 text-left">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Skip Delivery</h3>
               <button onClick={() => setSkipModalOpen(false)} className="text-slate-400 hover:text-slate-700">
@@ -463,8 +483,8 @@ export default function SubscriptionsList() {
 
       {/* Vacation Modal */}
       {vacationModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 text-left">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 max-w-md w-full shadow-2xl space-y-4 text-left">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Vacation Pause Settings</h3>
               <button onClick={() => setVacationModalOpen(false)} className="text-slate-400 hover:text-slate-700">
@@ -472,7 +492,7 @@ export default function SubscriptionsList() {
               </button>
             </div>
             <form onSubmit={handleVacationSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Start Date</label>
                   <input
@@ -518,8 +538,8 @@ export default function SubscriptionsList() {
 
       {/* Calendar deliveries View Modal */}
       {calendarModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 text-left">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 max-w-lg w-full shadow-2xl space-y-4 text-left">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center">
                 <FiCalendar className="w-4 h-4 mr-2 text-blue-600" />

@@ -164,21 +164,30 @@ const createPlan = async (
 ) => {
   await checkApprovedProvider(providerId);
 
-  await getOwnedService(
+  const service = await getOwnedService(
     providerId,
     serviceId
   );
 
+  const deliveriesPerDay = data.deliveries_per_day ? Math.max(1, parseInt(data.deliveries_per_day)) : 1;
+  const billingCycleDays = data.billing_cycle_days ? Math.max(1, parseInt(data.billing_cycle_days)) : 30;
+  const discountPercent = data.discount_percent !== undefined && data.discount_percent !== null ? Math.min(100, Math.max(0, parseFloat(data.discount_percent))) : 0;
+  const minQuantity = data.min_quantity !== undefined && data.min_quantity !== null ? Math.max(1, parseFloat(data.min_quantity)) : 1;
+
+  // Base price is the price for ONE delivery/service unit.
+  const grossPricePerUnit = Number(service.base_price) * 1 * deliveriesPerDay * billingCycleDays;
+  const discountAmountPerUnit = (grossPricePerUnit * discountPercent) / 100;
+  const calculatedPricePerUnit = Math.max(0, Number((grossPricePerUnit - discountAmountPerUnit).toFixed(2)));
+
   const plan = await ServicePlan.create({
     service_id: Number(serviceId),
     frequency: data.frequency,
-    price: data.price,
-    min_quantity:
-      data.min_quantity ?? 1,
-    billing_cycle_days:
-      data.billing_cycle_days,
-    is_active:
-      data.is_active ?? true,
+    price: data.price !== undefined && data.price !== null ? data.price : calculatedPricePerUnit,
+    min_quantity: minQuantity,
+    billing_cycle_days: billingCycleDays,
+    deliveries_per_day: deliveriesPerDay,
+    discount_percent: discountPercent,
+    is_active: data.is_active ?? true,
   });
 
   return plan;
@@ -198,7 +207,7 @@ const updatePlan = async (
 ) => {
   await checkApprovedProvider(providerId);
 
-  await getOwnedService(
+  const service = await getOwnedService(
     providerId,
     serviceId
   );
@@ -221,7 +230,25 @@ const updatePlan = async (
     );
   }
 
-  await plan.update(data);
+  const deliveriesPerDay = data.deliveries_per_day !== undefined ? Math.max(1, parseInt(data.deliveries_per_day)) : (plan.deliveries_per_day || 1);
+  const billingCycleDays = data.billing_cycle_days !== undefined ? Math.max(1, parseInt(data.billing_cycle_days)) : (plan.billing_cycle_days || 30);
+  const discountPercent = data.discount_percent !== undefined ? Math.min(100, Math.max(0, parseFloat(data.discount_percent))) : (Number(plan.discount_percent) || 0);
+  const minQuantity = data.min_quantity !== undefined ? Math.max(1, parseFloat(data.min_quantity)) : (Number(plan.min_quantity) || 1);
+
+  const grossPricePerUnit = Number(service.base_price) * 1 * deliveriesPerDay * billingCycleDays;
+  const discountAmountPerUnit = (grossPricePerUnit * discountPercent) / 100;
+  const calculatedPricePerUnit = Math.max(0, Number((grossPricePerUnit - discountAmountPerUnit).toFixed(2)));
+
+  const updateData = {
+    ...data,
+    price: data.price !== undefined ? data.price : calculatedPricePerUnit,
+    deliveries_per_day: deliveriesPerDay,
+    billing_cycle_days: billingCycleDays,
+    discount_percent: discountPercent,
+    min_quantity: minQuantity,
+  };
+
+  await plan.update(updateData);
 
   return plan;
 };

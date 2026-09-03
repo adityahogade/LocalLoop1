@@ -122,20 +122,20 @@ export default function CustomerLayout() {
             </div>
 
             {/* Right Nav Utilities */}
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-1 sm:space-x-2.5 min-w-0">
               {/* Location Selector Badge */}
               <div 
                 onClick={() => setLocationModalOpen(true)}
-                className="flex items-center text-xs text-left bg-slate-50 hover:bg-slate-100/80 border border-slate-150 px-3 py-1.5 rounded-xl hover:border-slate-350 cursor-pointer select-none transition-all duration-200 shrink-0"
+                className="flex items-center text-xs text-left bg-slate-50 hover:bg-slate-100/80 border border-slate-150 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl hover:border-slate-350 cursor-pointer select-none transition-all duration-200 shrink min-w-0"
               >
-                <span className="text-blue-600 mr-2">📍</span>
-                <div className="max-w-[120px] sm:max-w-[180px] md:max-w-[200px]">
-                  <span className="text-[9px] text-slate-400 block font-black uppercase tracking-wider leading-none mb-0.5">Service Area</span>
-                  <span className="font-extrabold text-slate-800 leading-none truncate block">
-                    {location ? `${location.city || location.area || 'Detected'} · ${location.pincode}` : 'Select Location'}
+                <span className="text-blue-600 mr-1 sm:mr-1.5 shrink-0 text-xs">📍</span>
+                <div className="max-w-[70px] xs:max-w-[100px] sm:max-w-[160px] md:max-w-[200px] min-w-0">
+                  <span className="text-[7px] sm:text-[9px] text-slate-400 block font-black uppercase tracking-wider leading-none mb-0.5 truncate">Service Area</span>
+                  <span className="font-extrabold text-slate-800 leading-none truncate block text-[10px] sm:text-xs">
+                    {location ? `${location.city || location.area || 'Detected'} · ${location.pincode}` : 'Location'}
                   </span>
                 </div>
-                <span className="text-[9px] text-blue-600 font-black uppercase tracking-wider ml-2.5 hover:underline">Change</span>
+                <span className="text-[9px] text-blue-600 font-black uppercase tracking-wider ml-1 sm:ml-2 hover:underline hidden sm:inline shrink-0">Change</span>
               </div>
 
               <div className="hidden sm:block">
@@ -146,10 +146,10 @@ export default function CustomerLayout() {
 
               {/* Profile Link & Logout */}
               {user ? (
-                <div className="flex items-center space-x-3 border-l border-slate-150 pl-3">
+                <div className="flex items-center space-x-1.5 sm:space-x-3 border-l border-slate-150 pl-1.5 sm:pl-3 shrink-0">
                   <Link
                     to="/customer/profile"
-                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 text-slate-700 hover:text-blue-600 transition-all duration-200"
+                    className="flex items-center gap-1.5 px-1.5 sm:px-2.5 py-1.5 rounded-lg hover:bg-slate-50 text-slate-700 hover:text-blue-600 transition-all duration-200"
                   >
                     <div className="w-7 h-7 bg-slate-100 rounded-full flex items-center justify-center border border-slate-200 font-bold text-xs text-slate-600 uppercase">
                       {user.full_name?.charAt(0) || 'U'}
@@ -167,16 +167,16 @@ export default function CustomerLayout() {
                   </button>
                 </div>
               ) : (
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">
                   <Link
                     to="/login"
-                    className="text-xs font-bold text-slate-600 hover:text-blue-600 px-3 py-2 rounded-lg transition-colors"
+                    className="text-xs font-bold text-slate-600 hover:text-blue-600 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-colors"
                   >
                     {t('login', { ns: 'common' })}
                   </Link>
                   <Link
                     to="/register"
-                    className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg shadow-md shadow-blue-500/10 hover:shadow-blue-500/20 transition-all active:scale-[0.98]"
+                    className="hidden xs:inline-flex text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg shadow-md shadow-blue-500/10 hover:shadow-blue-500/20 transition-all active:scale-[0.98]"
                   >
                     {t('signup', { ns: 'common' })}
                   </Link>
@@ -184,10 +184,10 @@ export default function CustomerLayout() {
               )}
 
               {/* Mobile Burger Menu Button */}
-              <div className="flex items-center md:hidden">
+              <div className="flex items-center md:hidden shrink-0">
                 <button
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                  className="p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-50 focus:outline-none transition-colors"
+                  className="p-1.5 sm:p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-50 focus:outline-none transition-colors"
                 >
                   {mobileMenuOpen ? <FiX className="w-5.5 h-5.5" /> : <FiMenu className="w-5.5 h-5.5" />}
                 </button>
@@ -219,7 +219,7 @@ export default function CustomerLayout() {
               <span>Language:</span>
               <LanguageSwitcher />
             </div>
-            {user && (
+            {user ? (
               <div className="border-t border-slate-100 pt-3 px-3 flex justify-between items-center">
                 <Link
                   to="/customer/profile"
@@ -242,18 +242,35 @@ export default function CustomerLayout() {
                   {t('logout', { ns: 'common' })}
                 </button>
               </div>
+            ) : (
+              <div className="border-t border-slate-100 pt-3 px-3 flex items-center gap-2">
+                <Link
+                  to="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex-1 text-center py-2 text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200"
+                >
+                  {t('login', { ns: 'common' })}
+                </Link>
+                <Link
+                  to="/register"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex-1 text-center py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm"
+                >
+                  {t('signup', { ns: 'common' })}
+                </Link>
+              </div>
             )}
           </div>
         )}
       </header>
 
       {/* Main Content */}
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-grow max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-8 min-w-0">
         <Outlet />
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-slate-100 py-8 mt-auto">
+      <footer className="bg-white border-t border-slate-100 py-6 sm:py-8 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-semibold text-slate-500">
             <div className="flex items-center gap-2">
@@ -272,8 +289,8 @@ export default function CustomerLayout() {
 
       {/* Location Modal */}
       {locationModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5 text-left transform scale-100 transition-all">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50 animate-fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl p-4 sm:p-6 max-w-md w-full shadow-2xl space-y-4 sm:space-y-5 text-left transform scale-100 transition-all">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                 <FiMapPin className="text-blue-600 w-4 h-4" />

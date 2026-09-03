@@ -160,7 +160,7 @@ export default function Catalog() {
   return (
     <div className="space-y-8 pb-12 text-left">
       {/* 1. LOCATION AND SEARCH BAR SECTION */}
-      <section className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
+      <section className="bg-white border border-slate-200 rounded-3xl p-4 sm:p-6 shadow-sm space-y-4 sm:space-y-6">
         {/* Dynamic GPS confirmation inline bar */}
         {tempLocation && (
           <div className="bg-blue-50 border border-blue-150 p-4 rounded-2xl space-y-3.5 animate-fade-in">
@@ -170,7 +170,7 @@ export default function Catalog() {
             <p className="text-xs font-black text-slate-800 leading-snug">
               {tempLocation.formatted_address || `${tempLocation.city}, ${tempLocation.state}`}
             </p>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => {
                   setLocation(tempLocation);
@@ -197,19 +197,21 @@ export default function Catalog() {
         )}
 
         <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center justify-between">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center flex-grow max-w-4xl">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center flex-grow max-w-4xl w-full min-w-0">
             {/* Location selector toggle */}
-            <div className="w-full sm:w-auto shrink-0 bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center gap-3">
-              <FiMapPin className="text-blue-600 w-5 h-5 shrink-0" />
-              <div className="text-left leading-tight">
-                <span className="text-[9px] text-slate-400 font-bold block uppercase tracking-wider">Service Location</span>
-                <span className="text-xs font-black text-slate-700 block truncate max-w-[200px]">
-                  {location ? (location.formatted_address || `${location.city} · ${location.pincode}`) : 'No location configured'}
-                </span>
+            <div className="w-full sm:w-auto shrink-0 bg-slate-50 border border-slate-200 rounded-2xl p-2.5 sm:p-3 flex items-center justify-between sm:justify-start gap-2 sm:gap-3 min-w-0">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <FiMapPin className="text-blue-600 w-5 h-5 shrink-0" />
+                <div className="text-left leading-tight min-w-0">
+                  <span className="text-[9px] text-slate-400 font-bold block uppercase tracking-wider">Service Location</span>
+                  <span className="text-xs font-black text-slate-700 block truncate max-w-[150px] sm:max-w-[200px]">
+                    {location ? (location.formatted_address || `${location.city} · ${location.pincode}`) : 'No location configured'}
+                  </span>
+                </div>
               </div>
               <button
                 onClick={() => setLocation(null)}
-                className="text-[10px] font-black text-blue-600 hover:text-blue-700 uppercase tracking-widest ml-2 bg-white px-2.5 py-1 rounded-lg border border-slate-200"
+                className="text-[10px] font-black text-blue-600 hover:text-blue-700 uppercase tracking-widest ml-2 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shrink-0"
               >
                 Change
               </button>
@@ -217,24 +219,24 @@ export default function Catalog() {
 
             {/* Manual input / fallback form if no location is configured */}
             {!location && !tempLocation && (
-              <form onSubmit={handleLocationSubmit} className="w-full sm:flex-grow flex items-center gap-2">
+              <form onSubmit={handleLocationSubmit} className="w-full sm:flex-grow flex items-center gap-2 min-w-0">
                 <input
                   type="text"
                   placeholder="Enter pincode or address"
                   value={pincodeInput}
                   onChange={(e) => setPincodeInput(e.target.value)}
-                  className="flex-grow px-3 py-2 text-xs font-semibold border border-slate-250 rounded-xl focus:outline-none focus:border-blue-600 bg-white"
+                  className="flex-grow px-3 py-2 text-xs font-semibold border border-slate-250 rounded-xl focus:outline-none focus:border-blue-600 bg-white min-w-0"
                 />
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold uppercase tracking-wider"
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold uppercase tracking-wider shrink-0"
                 >
                   Apply
                 </button>
                 <button
                   type="button"
                   onClick={handleGPSDetect}
-                  className="p-2 border border-slate-250 hover:bg-slate-50 text-blue-600 rounded-xl"
+                  className="p-2 border border-slate-250 hover:bg-slate-50 text-blue-600 rounded-xl shrink-0"
                   title="Detect GPS"
                 >
                   <FiNavigation className={detecting ? 'animate-spin' : ''} />
@@ -243,20 +245,20 @@ export default function Catalog() {
             )}
 
             {/* Keyword search bar */}
-            <form onSubmit={handleSearchSubmit} className="w-full sm:flex-grow flex items-center bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2">
+            <form onSubmit={handleSearchSubmit} className="w-full sm:flex-grow flex items-center bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 min-w-0">
               <FiSearch className="text-slate-400 w-5 h-5 mr-2 shrink-0" />
               <input
                 type="text"
                 placeholder="Search services or providers..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-transparent text-xs font-semibold focus:outline-none placeholder-slate-400 text-slate-800"
+                className="w-full bg-transparent text-xs font-semibold focus:outline-none placeholder-slate-400 text-slate-800 min-w-0"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => { setSearchQuery(''); }}
-                  className="text-slate-400 hover:text-slate-650 ml-1"
+                  className="text-slate-400 hover:text-slate-650 ml-1 shrink-0"
                 >
                   <FiX className="w-4 h-4" />
                 </button>
@@ -269,7 +271,7 @@ export default function Catalog() {
       {/* 2. CATALOG LAYOUT: SIDEBAR FILTERS AND LISTINGS */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Category Filter Panel Sidebar */}
-        <aside className="lg:col-span-3 bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
+        <aside className="lg:col-span-3 bg-white border border-slate-200 rounded-3xl p-4 sm:p-6 shadow-sm space-y-4 sm:space-y-6">
           <div className="flex justify-between items-center border-b border-slate-100 pb-3">
             <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1.5">
               <FiSliders className="text-blue-600 w-4 h-4" /> Categories

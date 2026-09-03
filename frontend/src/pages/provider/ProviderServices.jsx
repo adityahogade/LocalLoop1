@@ -32,9 +32,10 @@ export default function ProviderServices() {
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [editPlanId, setEditPlanId] = useState(null);
   const [frequency, setFrequency] = useState('daily');
-  const [price, setPrice] = useState('');
+  const [deliveriesPerDay, setDeliveriesPerDay] = useState(1);
   const [minQuantity, setMinQuantity] = useState(1);
-  const [billingCycleDays, setBillingCycleDays] = useState(1);
+  const [billingCycleDays, setBillingCycleDays] = useState(30);
+  const [discountPercent, setDiscountPercent] = useState(0);
   const [submittingPlan, setSubmittingPlan] = useState(false);
 
   const fetchServicesAndCategories = async () => {
@@ -108,7 +109,6 @@ export default function ProviderServices() {
   const handleServiceSubmit = async (e) => {
     e.preventDefault();
     setSubmittingService(true);
-
     const payload = {
       category_id: categoryId,
       name,
@@ -149,18 +149,20 @@ export default function ProviderServices() {
   const handleOpenAddPlan = () => {
     setEditPlanId(null);
     setFrequency('daily');
-    setPrice('');
+    setDeliveriesPerDay(1);
     setMinQuantity(1);
-    setBillingCycleDays(1);
+    setBillingCycleDays(30);
+    setDiscountPercent(0);
     setPlanModalOpen(true);
   };
 
   const handleOpenEditPlan = (plan) => {
     setEditPlanId(plan.id);
     setFrequency(plan.frequency);
-    setPrice(plan.price);
-    setMinQuantity(plan.min_quantity);
-    setBillingCycleDays(plan.billing_cycle_days);
+    setDeliveriesPerDay(plan.deliveries_per_day || 1);
+    setMinQuantity(plan.min_quantity || 1);
+    setBillingCycleDays(plan.billing_cycle_days || 30);
+    setDiscountPercent(Number(plan.discount_percent || 0));
     setPlanModalOpen(true);
   };
 
@@ -171,9 +173,10 @@ export default function ProviderServices() {
     setSubmittingPlan(true);
     const payload = {
       frequency,
-      price: Number(price),
-      min_quantity: Number(minQuantity),
-      billing_cycle_days: Number(billingCycleDays),
+      deliveries_per_day: Math.max(1, parseInt(deliveriesPerDay) || 1),
+      min_quantity: Math.max(1, parseFloat(minQuantity) || 1),
+      billing_cycle_days: Math.max(1, parseInt(billingCycleDays) || 30),
+      discount_percent: Math.min(100, Math.max(0, parseFloat(discountPercent) || 0)),
     };
 
     try {
@@ -314,23 +317,35 @@ export default function ProviderServices() {
               <p className="text-xs text-gray-400 text-center py-6">No pricing plans configured. Add a plan to enable subscriptions.</p>
             ) : (
               plans.map((p) => (
-                <div key={p.id} className="p-3 border border-gray-200 rounded-lg flex justify-between items-center text-xs font-semibold text-gray-700">
+                <div key={p.id} className="p-3 border border-gray-200 rounded-lg flex justify-between items-start text-xs font-semibold text-gray-700 bg-white shadow-sm hover:border-blue-300 transition-colors">
                   <div className="space-y-1">
-                    <span className="capitalize font-bold text-gray-800 block">{p.frequency}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="capitalize font-bold text-gray-800 block text-sm">{p.frequency} Plan</span>
+                      {Number(p.discount_percent) > 0 && (
+                        <span className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-[9px] font-black px-2 py-0.5 rounded">
+                          {p.discount_percent}% OFF
+                        </span>
+                      )}
+                    </div>
                     <span className="text-sm font-black text-gray-900 block">₹{Number(p.price).toFixed(2)}</span>
-                    <span className="text-[9px] text-gray-400">Cycle: {p.billing_cycle_days} Days | Min Qty: {p.min_quantity}</span>
+                    <div className="text-[10px] text-gray-500 font-medium space-y-0.5">
+                      <p>Deliveries: <span className="font-bold text-gray-700">{p.deliveries_per_day || 1} / day</span> ({((p.deliveries_per_day || 1) * (p.billing_cycle_days || 30))} total)</p>
+                      <p>Cycle: <span className="font-bold text-gray-700">{p.billing_cycle_days} Days</span> | Min Qty: <span className="font-bold text-gray-700">{p.min_quantity}</span></p>
+                    </div>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-1">
                     <button
                       onClick={() => handleOpenEditPlan(p)}
-                      className="p-1 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded"
+                      className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-gray-100 rounded transition-colors"
+                      title="Edit Plan"
                     >
                       <FiEdit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => handleDeletePlan(p.id)}
-                      className="p-1 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded"
+                      className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded transition-colors"
+                      title="Delete Plan"
                     >
                       <FiTrash2 className="w-3.5 h-3.5" />
                     </button>
@@ -447,85 +462,172 @@ export default function ProviderServices() {
       )}
 
       {/* Plan Modal */}
-      {planModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-gray-200 rounded-xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold text-gray-800">
-              {editPlanId ? 'Edit Pricing Plan' : 'Add New Pricing Plan'}
-            </h3>
-            <form onSubmit={handlePlanSubmit} className="space-y-4 text-xs font-semibold">
-              <div>
-                <label className="block text-gray-500 mb-2">Frequency</label>
-                <select
-                  value={frequency}
-                  onChange={(e) => setFrequency(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-blue-500 text-xs"
-                >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="custom">Custom</option>
-                </select>
+      {planModalOpen && (() => {
+        const basePriceNum = Number(selectedService?.base_price || 0);
+        const minQtyNum = Math.max(1, parseFloat(minQuantity) || 1);
+        const delivPerDayNum = Math.max(1, parseInt(deliveriesPerDay) || 1);
+        const cycleDaysNum = Math.max(1, parseInt(billingCycleDays) || 30);
+        const discountPctNum = Math.min(100, Math.max(0, parseFloat(discountPercent) || 0));
+
+        const totalDeliveries = delivPerDayNum * cycleDaysNum;
+        const grossPrice = basePriceNum * minQtyNum * totalDeliveries;
+        const discountAmount = (grossPrice * discountPctNum) / 100;
+        const finalPrice = Math.max(0, grossPrice - discountAmount);
+
+        return (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <div className="bg-white border border-gray-200 rounded-2xl p-5 sm:p-6 max-w-lg w-full shadow-2xl space-y-4 my-8">
+              <div className="border-b border-gray-100 pb-3">
+                <h3 className="text-base sm:text-lg font-bold text-gray-800">
+                  {editPlanId ? 'Edit Pricing Plan' : 'Add New Pricing Plan'}
+                </h3>
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  Configure delivery frequency, daily schedules, and optional customer discounts for <span className="font-bold text-gray-700">{selectedService?.name}</span>.
+                </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-gray-500 mb-2">Min Quantity requirement</label>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    value={minQuantity}
-                    onChange={(e) => setMinQuantity(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-blue-500 text-xs"
-                  />
+              <form onSubmit={handlePlanSubmit} className="space-y-4 text-xs font-semibold">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div>
+                    <label className="block text-gray-600 mb-1.5 font-bold">Plan Frequency</label>
+                    <select
+                      value={frequency}
+                      onChange={(e) => setFrequency(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-xs bg-white"
+                    >
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                      <option value="custom">Custom</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-600 mb-1.5 font-bold">Services / Deliveries Per Day</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      required
+                      value={deliveriesPerDay}
+                      onChange={(e) => setDeliveriesPerDay(Math.max(1, parseInt(e.target.value) || 1))}
+                      placeholder="e.g. 1 (Single) or 2 (Morning + Evening)"
+                      className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-xs bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div>
+                    <label className="block text-gray-600 mb-1.5 font-bold">Min Quantity Requirement</label>
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      value={minQuantity}
+                      onChange={(e) => setMinQuantity(Math.max(1, parseFloat(e.target.value) || 1))}
+                      className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-xs bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-600 mb-1.5 font-bold">Billing Cycle (Days)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      value={billingCycleDays}
+                      onChange={(e) => setBillingCycleDays(Math.max(1, parseInt(e.target.value) || 1))}
+                      placeholder="e.g. 30"
+                      className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-xs bg-white"
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-gray-500 mb-2">Billing Cycle (Days)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    value={billingCycleDays}
-                    onChange={(e) => setBillingCycleDays(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-blue-500 text-xs"
-                  />
+                  <label className="block text-gray-600 mb-1.5 font-bold">Provider Discount (%)</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      required
+                      value={discountPercent}
+                      onChange={(e) => setDiscountPercent(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                      placeholder="e.g. 10 for 10% discount"
+                      className="w-full px-3 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 text-xs bg-white"
+                    />
+                    <span className="absolute right-3 top-2 text-gray-400 font-bold">%</span>
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-gray-500 mb-2">Cycle Price (₹)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-blue-500 text-xs"
-                />
-              </div>
+                {/* Live Formula Price Breakdown Card */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 sm:p-4 space-y-2 text-xs text-slate-700">
+                  <div className="flex justify-between items-center text-slate-500 font-bold uppercase tracking-wider text-[10px] pb-1 border-b border-slate-200/60">
+                    <span>Live Formula Calculation</span>
+                    <span className="text-blue-600 font-black">Auto-Computed</span>
+                  </div>
 
-              <div className="flex justify-end gap-2 pt-2 text-sm font-semibold">
-                <button
-                  type="button"
-                  onClick={() => setPlanModalOpen(false)}
-                  className="px-4 py-2 border rounded hover:bg-gray-50 text-gray-700"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingPlan}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50"
-                >
-                  Save Plan
-                </button>
-              </div>
-            </form>
+                  <div className="space-y-1 pt-1">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Base Price (Per Unit)</span>
+                      <span className="font-bold text-slate-800">₹{basePriceNum.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Min Quantity</span>
+                      <span className="font-bold text-slate-800">× {minQtyNum}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Deliveries / Day</span>
+                      <span className="font-bold text-slate-800">× {delivPerDayNum}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Billing Cycle</span>
+                      <span className="font-bold text-slate-800">× {cycleDaysNum} Days</span>
+                    </div>
+                    <div className="flex justify-between text-blue-600 font-bold pt-1 border-t border-dashed border-slate-200 text-[11px]">
+                      <span>Total Deliveries</span>
+                      <span>{totalDeliveries} Deliveries</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-slate-800">
+                      <span>Gross Price</span>
+                      <span>₹{grossPrice.toFixed(2)}</span>
+                    </div>
+                    {discountPctNum > 0 && (
+                      <div className="flex justify-between text-emerald-600 font-bold">
+                        <span>Provider Discount ({discountPctNum}%)</span>
+                        <span>-₹{discountAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center pt-2 border-t border-slate-300 font-black text-slate-900 text-sm">
+                      <span>Final Subscription Price</span>
+                      <span className="text-blue-600 text-base">₹{finalPrice.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 text-sm font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setPlanModalOpen(false)}
+                    className="px-4 py-2 border rounded-xl hover:bg-gray-50 text-gray-700"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingPlan}
+                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl disabled:opacity-50 transition-all active:scale-[0.98] font-bold"
+                  >
+                    {submittingPlan ? 'Saving...' : 'Save Plan'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

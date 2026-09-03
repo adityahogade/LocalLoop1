@@ -27,7 +27,7 @@ export default function AdminLayout() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50/50 flex">
+    <div className="min-h-screen bg-slate-50/50 flex w-full max-w-full overflow-x-hidden">
       {/* Sidebar for Desktop */}
       <aside className="hidden md:flex flex-col w-64 bg-slate-900 text-slate-350 shrink-0 border-r border-slate-800">
         <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800 bg-slate-950">
@@ -83,30 +83,30 @@ export default function AdminLayout() {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-grow flex flex-col min-w-0">
+      <div className="flex-grow flex flex-col min-w-0 w-full max-w-full overflow-x-hidden">
         {/* Top Header Navbar */}
-        <header className="h-16 bg-white border-b border-slate-100 flex justify-between items-center px-6 sticky top-0 z-30 shadow-sm">
+        <header className="h-16 bg-white border-b border-slate-100 flex justify-between items-center px-4 sm:px-6 sticky top-0 z-30 shadow-sm min-w-0">
           <div className="flex items-center">
             {/* Mobile Sidebar Hamburger */}
             <button
               onClick={() => setMobileSidebarOpen(true)}
-              className="md:hidden p-2 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-50 mr-4 focus:outline-none"
+              className="md:hidden p-2 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-50 mr-2 sm:mr-4 focus:outline-none"
             >
               <FiMenu className="w-5.5 h-5.5" />
             </button>
-            <h1 className="text-sm font-extrabold text-slate-800 hidden sm:block uppercase tracking-wider">
+            <h1 className="text-xs sm:text-sm font-extrabold text-slate-800 hidden xs:block uppercase tracking-wider">
               System Control Console
             </h1>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4">
             <LanguageSwitcher />
             <NotificationBell />
           </div>
         </header>
 
         {/* Content Outlet */}
-        <main className="flex-grow p-6 overflow-y-auto">
+        <main className="flex-grow p-4 sm:p-6 overflow-y-auto min-w-0 w-full max-w-full">
           <Outlet />
         </main>
       </div>
@@ -118,7 +118,7 @@ export default function AdminLayout() {
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setMobileSidebarOpen(false)} />
           
           {/* Sidebar Drawer */}
-          <div className="relative flex flex-col w-64 max-w-xs bg-slate-950 text-slate-350 shadow-2xl">
+          <div className="relative flex flex-col w-64 max-w-[80vw] bg-slate-950 text-slate-350 shadow-2xl">
             <div className="absolute top-4 right-4 z-10">
               <button
                 onClick={() => setMobileSidebarOpen(false)}

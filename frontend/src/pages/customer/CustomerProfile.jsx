@@ -219,13 +219,18 @@ export default function CustomerProfile() {
   if (error) return <div className="p-5 bg-red-50 text-red-700 rounded-2xl text-xs font-bold shadow-sm">⚠️ {error}</div>;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-12 text-left items-start">
-      {/* Profile settings */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
-        <h3 className="text-sm font-black text-slate-800 flex items-center border-b border-slate-105 pb-3 uppercase tracking-wider">
-          <FiUser className="w-5 h-5 mr-2 text-blue-600" />
-          Personal Profile
-        </h3>
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 text-left pb-12">
+      {/* Profile Details Edit */}
+      <div className="bg-white border border-slate-200 rounded-3xl p-4 sm:p-6 shadow-sm space-y-6">
+        <div className="flex items-center gap-3 border-b border-slate-105 pb-3">
+          <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center font-black text-blue-600 text-sm">
+            {profile?.full_name?.charAt(0) || 'U'}
+          </div>
+          <div>
+            <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">{profile?.full_name || 'My Profile'}</h3>
+            <p className="text-[10px] text-slate-400 font-semibold">{profile?.email}</p>
+          </div>
+        </div>
 
         <form onSubmit={handleUpdateProfile} className="space-y-4 text-xs font-semibold">
           <div>
@@ -284,7 +289,7 @@ export default function CustomerProfile() {
       </div>
 
       {/* Address management */}
-      <div className="lg:col-span-2 bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
+      <div className="lg:col-span-2 bg-white border border-slate-200 rounded-3xl p-4 sm:p-6 shadow-sm space-y-6">
         <div className="flex justify-between items-center border-b border-slate-105 pb-3">
           <h3 className="text-sm font-black text-slate-800 flex items-center uppercase tracking-wider">
             <FiMapPin className="w-5 h-5 mr-2 text-blue-600" />
@@ -306,11 +311,11 @@ export default function CustomerProfile() {
             addresses.map((addr) => (
               <div
                 key={addr.id}
-                className={`p-4 border rounded-2xl flex justify-between items-start transition-all ${
+                className={`p-3.5 sm:p-4 border rounded-2xl flex justify-between items-start transition-all ${
                   addr.is_default ? 'border-blue-650 bg-blue-50/15 shadow-sm' : 'border-slate-200'
                 }`}
               >
-                <div className="space-y-2 text-xs">
+                <div className="space-y-2 text-xs min-w-0 flex-grow pr-2">
                   <div className="flex items-center gap-2">
                     <span className="font-black text-slate-800 uppercase tracking-widest text-[9px] bg-slate-100 border border-slate-150 px-2.5 py-0.5 rounded-full">{addr.label}</span>
                     {addr.is_default && (
@@ -319,7 +324,7 @@ export default function CustomerProfile() {
                       </span>
                     )}
                   </div>
-                  <p className="text-slate-500 font-semibold leading-relaxed">
+                  <p className="text-slate-500 font-semibold leading-relaxed break-words">
                     {addr.house_no}, {addr.building}, {addr.street}, {addr.area}, {addr.city}, {addr.state} - {addr.pincode}
                   </p>
                   
@@ -333,17 +338,17 @@ export default function CustomerProfile() {
                   )}
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-1 sm:gap-2 shrink-0">
                   <button
                     onClick={() => handleOpenEditAddress(addr)}
-                    className="p-2 text-slate-400 hover:text-blue-600 rounded-xl hover:bg-slate-50"
+                    className="p-1.5 sm:p-2 text-slate-400 hover:text-blue-600 rounded-xl hover:bg-slate-50"
                     title="Edit"
                   >
                     <FiEdit2 className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleDeleteAddress(addr.id)}
-                    className="p-2 text-slate-400 hover:text-red-650 rounded-xl hover:bg-slate-50"
+                    className="p-1.5 sm:p-2 text-slate-400 hover:text-red-650 rounded-xl hover:bg-slate-50"
                     title="Delete"
                   >
                     <FiTrash2 className="w-4 h-4" />
@@ -357,8 +362,8 @@ export default function CustomerProfile() {
 
       {/* Address Form Modal */}
       {addressModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
+          <div className="bg-white border border-slate-200 rounded-3xl p-4 sm:p-6 max-w-md w-full shadow-2xl space-y-4">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">
                 {editAddressId ? 'Edit Address Details' : 'Add New Delivery Address'}

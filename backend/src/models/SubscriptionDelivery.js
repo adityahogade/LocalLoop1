@@ -41,6 +41,11 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
       },
 
+      delivery_slot: {
+        type: DataTypes.STRING(50),
+        allowNull: true,
+      },
+
       notes: {
         type: DataTypes.STRING(255),
         allowNull: true,
@@ -58,7 +63,6 @@ module.exports = (sequelize, DataTypes) => {
       updatedAt: "updated_at",
       indexes: [
         {
-          unique: true,
           fields: ["subscription_id", "delivery_date"],
         },
         {

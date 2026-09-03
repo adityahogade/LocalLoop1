@@ -6,9 +6,9 @@ const createServicePlanSchema = Joi.object({
     .required(),
 
   price: Joi.number()
-    .positive()
+    .min(0)
     .precision(2)
-    .required(),
+    .optional(),
 
   min_quantity: Joi.number()
     .positive()
@@ -20,6 +20,17 @@ const createServicePlanSchema = Joi.object({
     .positive()
     .required(),
 
+  deliveries_per_day: Joi.number()
+    .integer()
+    .min(1)
+    .default(1),
+
+  discount_percent: Joi.number()
+    .min(0)
+    .max(100)
+    .precision(2)
+    .default(0),
+
   is_active: Joi.boolean()
     .default(true),
 });
@@ -29,7 +40,7 @@ const updateServicePlanSchema = Joi.object({
     .valid('daily', 'weekly', 'monthly', 'custom'),
 
   price: Joi.number()
-    .positive()
+    .min(0)
     .precision(2),
 
   min_quantity: Joi.number()
@@ -39,6 +50,15 @@ const updateServicePlanSchema = Joi.object({
   billing_cycle_days: Joi.number()
     .integer()
     .positive(),
+
+  deliveries_per_day: Joi.number()
+    .integer()
+    .min(1),
+
+  discount_percent: Joi.number()
+    .min(0)
+    .max(100)
+    .precision(2),
 
   is_active: Joi.boolean(),
 }).min(1);

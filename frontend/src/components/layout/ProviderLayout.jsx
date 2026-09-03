@@ -44,7 +44,7 @@ export default function ProviderLayout() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50/50 flex">
+    <div className="min-h-screen bg-slate-50/50 flex w-full max-w-full overflow-x-hidden">
       {/* Sidebar for Desktop */}
       <aside className="hidden md:flex flex-col w-64 bg-slate-900 text-slate-300 shrink-0 border-r border-slate-800">
         <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800 bg-slate-950">
@@ -100,23 +100,23 @@ export default function ProviderLayout() {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-grow flex flex-col min-w-0">
+      <div className="flex-grow flex flex-col min-w-0 w-full max-w-full overflow-x-hidden">
         {/* Top Header Navbar */}
-        <header className="h-16 bg-white border-b border-slate-100 flex justify-between items-center px-6 sticky top-0 z-30 shadow-sm">
+        <header className="h-16 bg-white border-b border-slate-100 flex justify-between items-center px-4 sm:px-6 sticky top-0 z-30 shadow-sm min-w-0">
           <div className="flex items-center">
             {/* Mobile Sidebar Hamburger */}
             <button
               onClick={() => setMobileSidebarOpen(true)}
-              className="md:hidden p-2 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-50 mr-4 focus:outline-none"
+              className="md:hidden p-2 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-50 mr-2 sm:mr-4 focus:outline-none"
             >
               <FiMenu className="w-5.5 h-5.5" />
             </button>
-            <h1 className="text-sm font-extrabold text-slate-800 hidden sm:block uppercase tracking-wider">
+            <h1 className="text-xs sm:text-sm font-extrabold text-slate-800 hidden xs:block uppercase tracking-wider">
               {t('dashboard', { ns: 'common' })} Console
             </h1>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4">
             <LanguageSwitcher />
             <NotificationBell />
           </div>
@@ -124,7 +124,7 @@ export default function ProviderLayout() {
 
         {/* KYC Status Warnings / Banner */}
         {kycStatus !== 'approved' && (
-          <div className="bg-amber-50 border-b border-amber-100 px-6 py-3 flex items-start space-x-3 text-amber-800 shadow-sm animate-pulse">
+          <div className="bg-amber-50 border-b border-amber-100 px-4 sm:px-6 py-3 flex items-start space-x-3 text-amber-800 shadow-sm animate-pulse min-w-0">
             <FiAlertTriangle className="w-4.5 h-4.5 text-amber-600 shrink-0 mt-0.5" />
             <div className="text-xs leading-normal font-semibold">
               KYC Verification Required: Your store profile is in <span className="underline">{kycStatus}</span> status. Active listings, pricing plans, service areas, and availability grids can only be customized or published once Admin approves your KYC documents on the Onboarding page.
@@ -133,7 +133,7 @@ export default function ProviderLayout() {
         )}
 
         {/* Content Outlet */}
-        <main className="flex-grow p-6 overflow-y-auto">
+        <main className="flex-grow p-4 sm:p-6 overflow-y-auto min-w-0 w-full max-w-full">
           <Outlet context={{ fetchProfile: fetchProviderProfile }} />
         </main>
       </div>
@@ -145,7 +145,7 @@ export default function ProviderLayout() {
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setMobileSidebarOpen(false)} />
           
           {/* Sidebar Drawer */}
-          <div className="relative flex flex-col w-64 max-w-xs bg-slate-950 text-slate-350 shadow-2xl">
+          <div className="relative flex flex-col w-64 max-w-[80vw] bg-slate-950 text-slate-350 shadow-2xl">
             <div className="absolute top-4 right-4 z-10">
               <button
                 onClick={() => setMobileSidebarOpen(false)}
