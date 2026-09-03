@@ -34,21 +34,6 @@ const authorize = (...allowedRoles) => {
 
     /*
     |--------------------------------------------------------------------------
-    | Temporary Authorization Debug
-    |--------------------------------------------------------------------------
-    */
-
-    console.log("AUTHORIZATION DEBUG:", {
-      method: req.method,
-      path: req.originalUrl,
-      userId: req.user.id,
-      roleId: req.user.roleId,
-      convertedRoleId: userRoleId,
-      allowedRoles: allowed,
-    });
-
-    /*
-    |--------------------------------------------------------------------------
     | Role Authorization
     |--------------------------------------------------------------------------
     */

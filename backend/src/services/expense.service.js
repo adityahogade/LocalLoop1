@@ -79,19 +79,21 @@ const getExpenseForProvider = async (expenseId, providerId) => {
         updated_at
       FROM provider_expenses
       WHERE id = :expenseId
-        AND provider_id = :providerId
       LIMIT 1
     `,
     {
       replacements: {
         expenseId: numericExpenseId,
-        providerId: numericProviderId,
       },
     }
   );
 
   if (!expenses.length) {
     throw new Error("Expense not found");
+  }
+
+  if (Number(expenses[0].provider_id) !== Number(numericProviderId)) {
+    throw new AppError("Forbidden", 403, "FORBIDDEN");
   }
 
   return expenses[0];

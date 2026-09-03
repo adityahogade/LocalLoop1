@@ -27,8 +27,9 @@ const create = async (userId, data) => {
 
 const update = async (userId, id, data) => {
   const provider = await getProvider(userId);
-  const slot = await ProviderAvailability.findOne({ where: { id, provider_id: provider.id } });
+  const slot = await ProviderAvailability.findOne({ where: { id } });
   if (!slot) throw new AppError("Availability slot not found", 404, "AVAILABILITY_NOT_FOUND");
+  if (Number(slot.provider_id) !== Number(provider.id)) throw new AppError("Forbidden", 403, "FORBIDDEN");
   assertTimeRange(data.start_time || slot.start_time, data.end_time || slot.end_time);
   await slot.update(data);
   return slot;
@@ -36,8 +37,10 @@ const update = async (userId, id, data) => {
 
 const remove = async (userId, id) => {
   const provider = await getProvider(userId);
-  const deleted = await ProviderAvailability.destroy({ where: { id, provider_id: provider.id } });
-  if (!deleted) throw new AppError("Availability slot not found", 404, "AVAILABILITY_NOT_FOUND");
+  const slot = await ProviderAvailability.findOne({ where: { id } });
+  if (!slot) throw new AppError("Availability slot not found", 404, "AVAILABILITY_NOT_FOUND");
+  if (Number(slot.provider_id) !== Number(provider.id)) throw new AppError("Forbidden", 403, "FORBIDDEN");
+  await slot.destroy();
 };
 
 const slotsForDate = async (providerId, date) => {

@@ -23,6 +23,10 @@ const startServer = async () => {
      * the HTTP server.
      */
     await connectDatabase();
+    const db = require('./models');
+    if (typeof db.ensureSubscriptionEnhancements === 'function') {
+      await db.ensureSubscriptionEnhancements();
+    }
 
     /*
      * Start Express server.

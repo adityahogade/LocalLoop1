@@ -7,7 +7,7 @@ const updateStatus = async (req, res, next) => {
     if (!provider) return res.status(404).json({ success: false, error: { code: "PROVIDER_NOT_FOUND", message: "Provider profile not found" } });
     const delivery = await SubscriptionDelivery.findOne({ where: { id: req.params.id }, include: [{ association: "subscription" }] });
     if (!delivery || delivery.subscription.provider_id !== provider.id) return res.status(404).json({ success: false, error: { code: "DELIVERY_NOT_FOUND", message: "Delivery not found" } });
-    const result = await subscriptionService.updateDeliveryStatus(provider.id, req.params.id, req.body.status, req.body.notes);
+    const result = await subscriptionService.updateDeliveryStatus(provider.id, req.params.id, req.body.status, req.body.notes, req.body.otp);
     res.json({ success: true, data: result });
   } catch (error) {
     next(error);

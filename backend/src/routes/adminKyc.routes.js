@@ -1,6 +1,7 @@
 const express = require("express");
 
 const adminKycController = require("../controllers/adminKyc.controller");
+const kycController = require("../controllers/kyc.controller");
 const authenticate = require("../midleware/auth");
 const authorize = require("../midleware/authorize");
 const validate = require("../midleware/validate");
@@ -35,6 +36,22 @@ router.get(
   authenticate,
   authorize(1),
   adminKycController.getPendingKyc
+);
+
+/*
+|--------------------------------------------------------------------------
+| View/Download KYC Document
+|--------------------------------------------------------------------------
+|
+| GET /api/admin/kyc/documents/:filename
+|
+*/
+
+router.get(
+  "/documents/:filename",
+  authenticate,
+  authorize(1),
+  kycController.serveKycDocument
 );
 
 /*

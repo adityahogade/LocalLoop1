@@ -2,9 +2,31 @@ const { verifyAccessToken } = require("../utils/jwt");
 
 const authenticate = (req, res, next) => {
   try {
+    let token = null;
     const authHeader = req.headers.authorization;
 
-    if (!authHeader) {
+    if (authHeader) {
+      const parts = authHeader.split(" ");
+
+      if (
+        parts.length !== 2 ||
+        parts[0].toLowerCase() !== "bearer"
+      ) {
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: "INVALID_AUTH_HEADER",
+            message: "Authorization header must use Bearer token",
+          },
+        });
+      }
+
+      token = parts[1];
+    } else if (req.query?.token) {
+      token = req.query.token;
+    }
+
+    if (!token) {
       return res.status(401).json({
         success: false,
         error: {
@@ -14,22 +36,7 @@ const authenticate = (req, res, next) => {
       });
     }
 
-    const parts = authHeader.split(" ");
-
-    if (
-      parts.length !== 2 ||
-      parts[0].toLowerCase() !== "bearer"
-    ) {
-      return res.status(401).json({
-        success: false,
-        error: {
-          code: "INVALID_AUTH_HEADER",
-          message: "Authorization header must use Bearer token",
-        },
-      });
-    }
-
-    const decoded = verifyAccessToken(parts[1]);
+    const decoded = verifyAccessToken(token);
 
     req.user = {
       id: decoded.userId,

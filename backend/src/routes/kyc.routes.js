@@ -58,4 +58,20 @@ router.get(
   kycController.getMyKycDocuments
 );
 
+/*
+|--------------------------------------------------------------------------
+| View/Download KYC Document
+|--------------------------------------------------------------------------
+|
+| GET /api/providers/kyc/documents/:filename
+|
+*/
+
+router.get(
+  "/documents/:filename",
+  authenticate,
+  authorize(3),
+  kycController.serveKycDocument
+);
+
 module.exports = router;

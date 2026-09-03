@@ -60,6 +60,8 @@ const deliveryRoutes = require("./routes/delivery.routes");
 |--------------------------------------------------------------------------
 */
 
+const authenticate = require("./midleware/auth");
+const kycController = require("./controllers/kyc.controller");
 const notFound = require("./midleware/notFound");
 const errorHandler = require("./midleware/errorHandler");
 
@@ -488,6 +490,27 @@ app.use(
 app.use(
   "/api/v1/provider/service-areas",
   serviceAreaRoutes
+);
+
+/*
+|--------------------------------------------------------------------------
+| Private KYC Documents
+|--------------------------------------------------------------------------
+|
+| Authenticated access to provider KYC verification documents.
+|
+*/
+
+app.get(
+  "/private-uploads/kyc/:filename",
+  authenticate,
+  kycController.serveKycDocument
+);
+
+app.get(
+  "/api/kyc/documents/:filename",
+  authenticate,
+  kycController.serveKycDocument
 );
 
 /*

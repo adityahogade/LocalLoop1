@@ -3,7 +3,15 @@ const { SupportTicket, SupportMessage } = require("../models");
 const notifications = require("./notification.service");
 const AppError = require("../utils/AppError");
 const include = [{ model: SupportMessage, as: "messages", order: [["created_at", "ASC"]] }];
-const canAccess = async (userId, roleId, id) => { const where = Number(roleId) === 1 ? { id } : { id, user_id: userId }; const ticket = await SupportTicket.findOne({ where, include }); if (!ticket) throw new AppError("Support ticket not found", 404, "TICKET_NOT_FOUND"); return ticket; };
+const canAccess = async (userId, roleId, id) => {
+  const ticket = await SupportTicket.findOne({ where: { id }, include });
+  if (!ticket) throw new AppError("Support ticket not found", 404, "TICKET_NOT_FOUND");
+  if (Number(roleId) !== 1) {
+    const ownerId = ticket.user_id ?? userId;
+    if (Number(ownerId) !== Number(userId)) throw new AppError("Forbidden", 403, "FORBIDDEN");
+  }
+  return ticket;
+};
 const create = async (userId, data) => { const ticket = await SupportTicket.create({ ticket_code: `TKT-${Date.now().toString(36)}-${Math.floor(Math.random() * 1000)}`, user_id: userId, subject: data.subject, category: data.category, priority: data.priority || "medium" }); await SupportMessage.create({ ticket_id: ticket.id, sender_id: userId, message: data.message }); return canAccess(userId, 1, ticket.id); };
 const list = (userId, roleId) => SupportTicket.findAll({ where: Number(roleId) === 1 ? {} : { user_id: userId }, include, order: [["updated_at", "DESC"]] });
 const get = (userId, roleId, id) => canAccess(userId, roleId, id);
