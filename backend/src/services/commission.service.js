@@ -138,19 +138,28 @@ const recordEarningForPayment = async (payment, transaction) => {
 
   // Find or create the subscription delivery for this billing period
   const { SubscriptionDelivery } = require("../models");
+  const periodStart = subscriptionPayment.billing_period_start || new Date().toISOString().slice(0, 10);
   let delivery = await SubscriptionDelivery.findOne({
-    where: { subscription_id: subscription.id },
-    order: [["id", "DESC"]],
+    where: { subscription_id: subscription.id, delivery_date: periodStart },
     transaction
   });
 
   if (!delivery) {
+    delivery = await SubscriptionDelivery.findOne({
+      where: { subscription_id: subscription.id },
+      order: [["id", "DESC"]],
+      transaction
+    });
+  }
+
+  if (!delivery) {
+    const slot = (Array.isArray(subscription.delivery_slots) && subscription.delivery_slots[0]?.slot) || subscription.delivery_time_slot || "morning";
     delivery = await SubscriptionDelivery.create({
       subscription_id: subscription.id,
-      delivery_date: subscriptionPayment.billing_period_start || new Date().toISOString().slice(0, 10),
-      status: "delivered",
+      delivery_date: periodStart,
+      delivery_slot: slot,
+      status: "scheduled",
       quantity: subscription.quantity,
-      delivered_at: new Date()
     }, { transaction });
   }
 
