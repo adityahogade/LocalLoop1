@@ -58,22 +58,19 @@ export default function ProviderBookings() {
     }
   };
 
-  const fetchSubscriptions = async () => {
-    setSubLoading(true);
+  const fetchSubscriptions = async (isBackground = false) => {
+    if (!isBackground) setSubLoading(true);
     setError(null);
     try {
-      console.log('Fetching provider subscriptions...');
       const res = await providerApi.getSubscriptions();
-      console.log('Provider subscriptions response:', res);
       if (res?.success) {
-        console.log('Setting subscriptions array:', res.data);
         setSubscriptions(res.data || []);
       }
     } catch (err) {
       console.error('Error fetching provider subscriptions:', err);
-      setError('Failed to fetch customer subscriptions.');
+      if (!isBackground) setError('Failed to fetch customer subscriptions.');
     } finally {
-      setSubLoading(false);
+      if (!isBackground) setSubLoading(false);
     }
   };
 
@@ -108,6 +105,7 @@ export default function ProviderBookings() {
         alert(`Subscription delivery status updated successfully to ${deliveryStatus.replace(/_/g, ' ')}!`);
         setDeliveryId('');
         setDeliveryNotes('');
+        fetchSubscriptions(true);
       }
     } catch (err) {
       alert(err.message || 'Failed to update delivery status. Verify delivery ID.');
@@ -122,7 +120,49 @@ export default function ProviderBookings() {
       const res = await providerApi.updateDeliveryStatus(delivId, status, '', otp);
       if (res?.success) {
         setOtpInputs(prev => ({ ...prev, [delivId]: '' }));
-        fetchSubscriptions();
+        // Immediate local state update for instant UI feedback
+        setSubscriptions(prevSubs => prevSubs.map(sub => {
+          const hasDelivery = sub.delivery_tracking?.today_deliveries?.some(d => d.id === delivId) ||
+            sub.delivery_tracking?.deliveries?.some(d => d.id === delivId);
+          if (!hasDelivery) return sub;
+
+          const updatedToday = (sub.delivery_tracking?.today_deliveries || []).map(d =>
+            d.id === delivId ? { ...d, ...(res.data || {}), status } : d
+          );
+          const updatedAll = (sub.delivery_tracking?.deliveries || []).map(d =>
+            d.id === delivId ? { ...d, ...(res.data || {}), status } : d
+          );
+
+          let updatedStatus = sub.delivery_tracking?.today_delivery_status || 'SCHEDULED';
+          if (updatedToday.length > 0) {
+            if (updatedToday.every(d => d.status === 'delivered')) {
+              updatedStatus = 'DELIVERED';
+            } else if (updatedToday.some(d => d.status === 'out_for_delivery')) {
+              updatedStatus = 'OUT_FOR_DELIVERY';
+            } else if (updatedToday.some(d => d.status === 'ready')) {
+              updatedStatus = 'READY';
+            } else if (updatedToday.some(d => d.status === 'scheduled')) {
+              updatedStatus = 'SCHEDULED';
+            }
+          }
+
+          const completed = updatedAll.filter(d => d.status === 'delivered').length;
+          const remaining = updatedAll.filter(d => ['scheduled', 'ready', 'out_for_delivery'].includes(d.status)).length;
+
+          return {
+            ...sub,
+            delivery_tracking: {
+              ...sub.delivery_tracking,
+              today_deliveries: updatedToday,
+              deliveries: updatedAll,
+              today_delivery_status: updatedStatus,
+              completed_deliveries: completed,
+              remaining_deliveries: remaining
+            }
+          };
+        }));
+        // Reconcile with server in the background without blocking UI
+        fetchSubscriptions(true);
       }
     } catch (err) {
       alert(err.message || 'Failed to update delivery status. Verify OTP.');

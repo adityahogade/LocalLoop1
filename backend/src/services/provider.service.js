@@ -519,8 +519,7 @@ const getSubscriptions = async (providerId) => {
     order: [["created_at", "DESC"]]
   });
 
-  const result = [];
-  for (const sub of rows) {
+  const result = await Promise.all(rows.map(async (sub) => {
     const subJson = sub.toJSON();
     if (["active", "paused", "vacation"].includes(sub.status)) {
       subJson.delivery_tracking = await subscriptionService.getDeliveryTracking(sub);
@@ -538,8 +537,8 @@ const getSubscriptions = async (providerId) => {
         deliveries: []
       };
     }
-    result.push(subJson);
-  }
+    return subJson;
+  }));
   return result;
 };
 

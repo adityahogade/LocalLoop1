@@ -27,8 +27,8 @@ export default function SubscriptionsList() {
   const [deliveries, setDeliveries] = useState([]);
   const [loadingDeliveries, setLoadingDeliveries] = useState(false);
 
-  const fetchSubscriptions = async () => {
-    setLoading(true);
+  const fetchSubscriptions = async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     setError(null);
     try {
       const res = await customerApi.getSubscriptions();
@@ -39,11 +39,11 @@ export default function SubscriptionsList() {
       console.error(err);
       if (err.code === 'CUSTOMER_NOT_FOUND') {
         setError('Customer profile not found in database. Please register a new customer account using the Sign Up page.');
-      } else {
+      } else if (!isBackground) {
         setError('Failed to load subscriptions.');
       }
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 
@@ -56,7 +56,8 @@ export default function SubscriptionsList() {
     try {
       const res = await customerApi.pauseSubscription(id);
       if (res?.success) {
-        fetchSubscriptions();
+        setSubscriptions(prev => prev.map(s => s.id === id ? { ...s, status: 'paused' } : s));
+        fetchSubscriptions(true);
       }
     } catch (err) {
       alert(err.message || 'Failed to pause subscription.');
@@ -67,7 +68,8 @@ export default function SubscriptionsList() {
     try {
       const res = await customerApi.resumeSubscription(id);
       if (res?.success) {
-        fetchSubscriptions();
+        setSubscriptions(prev => prev.map(s => s.id === id ? { ...s, status: 'active' } : s));
+        fetchSubscriptions(true);
       }
     } catch (err) {
       alert(err.message || 'Failed to resume subscription.');
@@ -155,8 +157,8 @@ export default function SubscriptionsList() {
     }
   };
 
-  if (loading) return <Skeleton type="table" count={5} />;
-  if (error) return <div className="p-5 bg-red-50 text-red-700 rounded-2xl text-xs font-bold shadow-sm">⚠️ {error}</div>;
+  if (loading && subscriptions.length === 0) return <Skeleton type="table" count={5} />;
+  if (error && subscriptions.length === 0) return <div className="p-5 bg-red-50 text-red-700 rounded-2xl text-xs font-bold shadow-sm">⚠️ {error}</div>;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12">
