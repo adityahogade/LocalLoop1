@@ -17,7 +17,23 @@ const verifyAccessToken = (token) => {
   return jwt.verify(token, JWT_SECRET);
 };
 
+const generateDocumentToken = (payload, expiresIn = "15m") => {
+  return jwt.sign({ ...payload, tokenType: "kyc_doc_access" }, JWT_SECRET, {
+    expiresIn,
+  });
+};
+
+const verifyDocumentToken = (token) => {
+  const decoded = jwt.verify(token, JWT_SECRET);
+  if (decoded.tokenType !== "kyc_doc_access") {
+    throw new Error("Invalid document token type");
+  }
+  return decoded;
+};
+
 module.exports = {
   generateAccessToken,
   verifyAccessToken,
+  generateDocumentToken,
+  verifyDocumentToken,
 };

@@ -58,4 +58,36 @@ router.get(
   kycController.getMyKycDocuments
 );
 
+/*
+|--------------------------------------------------------------------------
+| Generate Temporary KYC Document View Token
+|--------------------------------------------------------------------------
+|
+| GET /api/providers/kyc/documents/:filename/view-token
+|
+*/
+
+router.get(
+  "/documents/:filename/view-token",
+  authenticate,
+  authorize(3),
+  kycController.getKycViewToken
+);
+
+/*
+|--------------------------------------------------------------------------
+| View/Download KYC Document
+|--------------------------------------------------------------------------
+|
+| GET /api/providers/kyc/documents/:filename
+|
+*/
+
+router.get(
+  "/documents/:filename",
+  authenticate,
+  authorize(3),
+  kycController.serveKycDocument
+);
+
 module.exports = router;

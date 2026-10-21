@@ -3,7 +3,10 @@ const path = require("path");
 const crypto = require("crypto");
 const multer = require("multer");
 
-const uploadDir = path.resolve(__dirname, "../../private-uploads/kyc");
+const uploadDir = process.env.KYC_UPLOAD_DIR
+  ? path.resolve(process.env.KYC_UPLOAD_DIR)
+  : path.resolve(__dirname, "../../private-uploads/kyc");
+
 fs.mkdirSync(uploadDir, { recursive: true });
 
 const allowedExtensions = new Set([".pdf", ".jpg", ".jpeg", ".png"]);

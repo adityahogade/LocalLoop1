@@ -9,4 +9,5 @@ const transition = (status) => async (req, res, next) => { try { res.json({ succ
 const vacation = async (req, res, next) => { try { res.json({ success: true, data: await service.update(req.user.id, req.params.id, { status: "vacation", ...req.body }) }); } catch (error) { next(error); } };
 const calendar = async (req, res, next) => { try { res.json({ success: true, data: await service.calendar(req.user.id, req.params.id, req.query.from, req.query.to) }); } catch (error) { next(error); } };
 const renew = async (req, res, next) => { try { res.status(201).json({ success: true, data: await service.renew(req.user.id, req.params.id) }); } catch (error) { next(error); } };
-module.exports = { create, list, get, update, deliveries, skip, pause: transition("paused"), resume: transition("active"), cancel: transition("cancelled"), vacation, calendar, renew };
+const today = async (req, res, next) => { try { res.json({ success: true, data: await service.getTodayTracking(req.user.id, req.params.id) }); } catch (error) { next(error); } };
+module.exports = { create, list, get, update, deliveries, today, skip, pause: transition("paused"), resume: transition("active"), cancel: transition("cancelled"), vacation, calendar, renew };

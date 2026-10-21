@@ -64,18 +64,21 @@ const updateArea = async (
 ) => {
   await checkProvider(providerId);
 
-  const area = await ServiceArea.findOne({
-    where: {
-      id: areaId,
-      provider_id: providerId,
-    },
-  });
+  const area = await ServiceArea.findOne({ where: { id: areaId } });
 
   if (!area) {
     throw new AppError(
       'Service area not found',
       404,
       'SERVICE_AREA_NOT_FOUND'
+    );
+  }
+
+  if (Number(area.provider_id) !== Number(providerId)) {
+    throw new AppError(
+      'Forbidden',
+      403,
+      'FORBIDDEN'
     );
   }
 
@@ -110,18 +113,21 @@ const deleteArea = async (
 ) => {
   await checkProvider(providerId);
 
-  const area = await ServiceArea.findOne({
-    where: {
-      id: areaId,
-      provider_id: providerId,
-    },
-  });
+  const area = await ServiceArea.findOne({ where: { id: areaId } });
 
   if (!area) {
     throw new AppError(
       'Service area not found',
       404,
       'SERVICE_AREA_NOT_FOUND'
+    );
+  }
+
+  if (Number(area.provider_id) !== Number(providerId)) {
+    throw new AppError(
+      'Forbidden',
+      403,
+      'FORBIDDEN'
     );
   }
 

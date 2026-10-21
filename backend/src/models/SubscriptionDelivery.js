@@ -21,6 +21,7 @@ module.exports = (sequelize, DataTypes) => {
       status: {
         type: DataTypes.ENUM(
           "scheduled",
+          "ready",
           "out_for_delivery",
           "delivered",
           "skipped",
@@ -40,8 +41,18 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
       },
 
+      delivery_slot: {
+        type: DataTypes.STRING(50),
+        allowNull: true,
+      },
+
       notes: {
         type: DataTypes.STRING(255),
+        allowNull: true,
+      },
+
+      otp_code: {
+        type: DataTypes.STRING(6),
         allowNull: true,
       },
     },
@@ -52,7 +63,6 @@ module.exports = (sequelize, DataTypes) => {
       updatedAt: "updated_at",
       indexes: [
         {
-          unique: true,
           fields: ["subscription_id", "delivery_date"],
         },
         {

@@ -49,6 +49,47 @@ describe("commission rule resolution", () => {
     expect(earning.update).toHaveBeenCalledWith({ refund_amount: 500, net_earning: 8500 }, { transaction: {} });
     expect(earning.commission_amount).toBe(1000);
   });
+
+  test("initial subscription delivery order starts with scheduled status and not delivered", async () => {
+    const subscription = {
+      id: 88,
+      provider_id: 12,
+      service_id: 34,
+      delivery_time_slot: "morning",
+      quantity: 1,
+      service: { category_id: 3 },
+      servicePlan: { price: 500 }
+    };
+    const subscriptionPayment = {
+      id: 55,
+      billing_period_start: "2026-10-20",
+      amount: 500,
+      subscription
+    };
+    jest.spyOn(models.SubscriptionPayment, "findByPk").mockResolvedValue(subscriptionPayment);
+    jest.spyOn(models.SubscriptionDelivery, "findOne").mockResolvedValue(null);
+    let createdDelivery = null;
+    jest.spyOn(models.SubscriptionDelivery, "create").mockImplementation(async (data) => {
+      createdDelivery = { id: 101, ...data };
+      return createdDelivery;
+    });
+    jest.spyOn(models.ProviderEarning, "findOne").mockResolvedValue(null);
+    jest.spyOn(models.ProviderEarning, "create").mockImplementation(async (data) => ({ id: 202, ...data }));
+    jest.spyOn(models.CommissionRule, "findOne").mockResolvedValue({ commission_percent: 10 });
+
+    await commissionService.recordEarningForPayment({
+      id: 999,
+      reference_type: "subscription_payment",
+      reference_id: 55,
+      amount: 500,
+      paid_at: new Date()
+    });
+
+    expect(createdDelivery).not.toBeNull();
+    expect(createdDelivery.status).toBe("scheduled");
+    expect(createdDelivery.delivered_at).toBeUndefined();
+    expect(createdDelivery.delivery_date).toBe("2026-10-20");
+  });
 });
 
 describe("subscription billing retry", () => {

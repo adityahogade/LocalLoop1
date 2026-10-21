@@ -25,15 +25,65 @@ const create = async (userId, data) => {
     if (!provider) throw new AppError("Provider not found or inactive", 404, "PROVIDER_NOT_FOUND");
     const address = await Address.findOne({ where: { id: data.address_id, customer_id: customer.id }, transaction });
     if (!address) throw new AppError("Address not found", 404, "ADDRESS_NOT_FOUND");
-    const area = await require("../models").ServiceArea.findOne({ where: { provider_id: provider.id, pincode: address.pincode }, transaction });
-    if (!area) throw new AppError("Provider does not serve this address", 409, "SERVICE_AREA_UNAVAILABLE");
+    if (address.latitude !== null && address.longitude !== null && provider.latitude !== null && provider.longitude !== null) {
+      const lat1 = parseFloat(address.latitude);
+      const lon1 = parseFloat(address.longitude);
+      const lat2 = parseFloat(provider.latitude);
+      const lon2 = parseFloat(provider.longitude);
+      
+      const R = 6371; // Earth's radius in km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distance = R * c;
+
+      const radius = parseFloat(provider.service_radius_km || 10.00);
+      if (distance > radius) {
+        throw new AppError(`Address is outside the provider's service radius of ${radius} km (distance: ${distance.toFixed(1)} km)`, 409, "SERVICE_AREA_UNAVAILABLE");
+      }
+    } else {
+      const area = await require("../models").ServiceArea.findOne({ where: { provider_id: provider.id, pincode: address.pincode }, transaction });
+      if (!area) throw new AppError("Provider does not serve this address", 409, "SERVICE_AREA_UNAVAILABLE");
+    }
     const services = await Service.findAll({ where: { id: { [Op.in]: data.items.map((item) => item.service_id) }, provider_id: provider.id, is_active: true }, transaction });
     if (services.length !== data.items.length) throw new AppError("One or more services are invalid for this provider", 400, "INVALID_SERVICE");
     await validateSlot(provider.id, data.scheduled_date, data.scheduled_time, transaction);
     const byId = new Map(services.map((service) => [String(service.id), service]));
     const items = data.items.map((item) => { const service = byId.get(String(item.service_id)); const unit = Number(service.base_price); return { service_id: service.id, quantity: item.quantity, unit_price: unit, line_total: unit * item.quantity }; });
-    const subtotal = items.reduce((sum, item) => sum + item.line_total, 0);
-    const order = await Order.create({ customer_id: customer.id, provider_id: provider.id, address_id: address.id, category_id: services[0].category_id, order_number: `LL-${Date.now()}-${Math.floor(Math.random() * 1000)}`, scheduled_date: data.scheduled_date, scheduled_time_slot: data.scheduled_time, booking_details_json: data.notes ? { notes: data.notes, type: data.type } : { type: data.type }, subtotal, total_amount: subtotal, discount_amount: 0 }, { transaction });
+    const providerAmount = items.reduce((sum, item) => sum + item.line_total, 0);
+    const commissionService = require("./commission.service");
+    const { percent } = await commissionService.commissionPercentFor({
+      serviceId: services[0].id,
+      categoryId: services[0].category_id,
+      transaction
+    });
+    const commissionAmount = Math.round(providerAmount * percent) / 100;
+    const totalAmount = Number((providerAmount + commissionAmount).toFixed(2));
+
+    const order = await Order.create({
+      customer_id: customer.id,
+      provider_id: provider.id,
+      address_id: address.id,
+      category_id: services[0].category_id,
+      order_number: `LL-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      scheduled_date: data.scheduled_date,
+      scheduled_time_slot: data.scheduled_time,
+      booking_details_json: {
+        ...(data.notes ? { notes: data.notes } : {}),
+        type: data.type,
+        provider_amount: providerAmount,
+        commission_percent: percent,
+        commission_amount: commissionAmount,
+        customer_amount: totalAmount
+      },
+      subtotal: providerAmount,
+      total_amount: totalAmount,
+      discount_amount: 0
+    }, { transaction });
     await OrderItem.bulkCreate(items.map((item) => ({ ...item, order_id: order.id })), { transaction });
     await notifications.createOnce({ user_id: userId, type: "order_confirmed", title: "Order created", body: "Your order has been created and is awaiting confirmation.", reference_type: "order", reference_id: order.id, transaction });
     return Order.findByPk(order.id, { include: orderInclude, transaction });
@@ -41,6 +91,51 @@ const create = async (userId, data) => {
 };
 
 const list = async (userId, roleId) => { const where = Number(roleId) === 3 ? { provider_id: (await ensureProvider(userId)).id } : { customer_id: (await ensureCustomer(userId)).id }; return Order.findAll({ where, include: orderInclude, order: [["created_at", "DESC"]] }); };
-const get = async (userId, roleId, id) => { const orders = await list(userId, roleId); const order = orders.find((item) => String(item.id) === String(id)); if (!order) throw new AppError("Order not found", 404, "ORDER_NOT_FOUND"); return order; };
-const updateStatus = async (userId, roleId, id, status) => { const order = await get(userId, roleId, id); const transitions = { pending: ["confirmed", "cancelled"], confirmed: ["in_progress", "cancelled"], in_progress: ["completed"], completed: [], cancelled: [] }; if (!transitions[order.status].includes(status)) throw new AppError(`Cannot change order from ${order.status} to ${status}`, 409, "INVALID_ORDER_TRANSITION"); if (Number(roleId) === 2 && !["cancelled"].includes(status)) throw new AppError("Customers can only cancel orders", 403, "FORBIDDEN"); await order.update({ status }); if (status === "confirmed") { const customer = await Customer.findByPk(order.customer_id, { attributes: ["user_id"] }); await notifications.createOnce({ user_id: customer.user_id, type: "order_confirmed", title: "Order confirmed", body: "Your provider has confirmed the order.", reference_type: "order", reference_id: order.id }); } return order; };
+const get = async (userId, roleId, id) => {
+  const order = await Order.findOne({ where: { id }, include: orderInclude });
+  if (!order) throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
+
+  if (Number(roleId) === 2) {
+    const activeCustomerId = Number((await ensureCustomer(userId)).id);
+    if (Number(order.customer_id) !== activeCustomerId) throw new AppError("Forbidden", 403, "FORBIDDEN");
+  }
+
+  if (Number(roleId) === 3) {
+    const activeProviderId = Number((await ensureProvider(userId)).id);
+    if (Number(order.provider_id) !== activeProviderId) throw new AppError("Forbidden", 403, "FORBIDDEN");
+  }
+
+  return order;
+};
+const updateStatus = async (userId, roleId, id, status) => {
+  const order = await get(userId, roleId, id);
+  const transitions = { pending: ["confirmed", "cancelled"], confirmed: ["in_progress", "cancelled"], in_progress: ["completed"], completed: [], cancelled: [] };
+  if (!transitions[order.status]?.includes(status)) throw new AppError(`Cannot change order from ${order.status} to ${status}`, 409, "INVALID_ORDER_TRANSITION");
+  if (Number(roleId) === 2 && !["cancelled"].includes(status)) throw new AppError("Customers can only cancel orders", 403, "FORBIDDEN");
+  await order.update({ status });
+  if (status === "confirmed") {
+    const customer = await Customer.findByPk(order.customer_id, { attributes: ["user_id"] });
+    await notifications.createOnce({ user_id: customer.user_id, type: "order_confirmed", title: "Order confirmed", body: "Your provider has confirmed the order.", reference_type: "order", reference_id: order.id });
+  }
+  if (status === "completed") {
+    if (order.payment_id) {
+      const { Payment } = require("../models");
+      const payment = await Payment.findByPk(order.payment_id);
+      if (payment && payment.status === "paid") {
+        await require("./commission.service").createProviderEarning({
+          providerId: order.provider_id,
+          sourceType: "order",
+          sourceId: order.id,
+          paymentId: payment.id,
+          grossAmount: Number(order.total_amount),
+          providerAmount: Number(order.subtotal),
+          serviceId: order.items?.[0]?.service_id || null,
+          categoryId: order.category_id,
+          earningDate: new Date()
+        });
+      }
+    }
+  }
+  return order;
+};
 module.exports = { create, list, get, updateStatus };

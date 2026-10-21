@@ -73,6 +73,13 @@ router.patch(
   providerController.updateMyProviderProfile
 );
 
+router.get(
+  "/me/subscriptions",
+  authenticate,
+  authorize(3),
+  providerController.getMySubscriptions
+);
+
 /**
  * Get provider by ID
  *

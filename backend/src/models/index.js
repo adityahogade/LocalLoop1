@@ -784,7 +784,48 @@ db.PlatformSetting.belongsTo(db.User, {
 });
 
 // ======================================================
-// EXPORT
+// EXPORT & SCHEMA ENSURANCE
 // ======================================================
+
+const ensureSubscriptionEnhancements = async () => {
+  try {
+    const qi = sequelize.getQueryInterface();
+    const planCols = await qi.describeTable("service_plans").catch(() => null);
+    if (planCols) {
+      if (!planCols.deliveries_per_day) {
+        await qi.addColumn("service_plans", "deliveries_per_day", {
+          type: Sequelize.SMALLINT.UNSIGNED,
+          allowNull: false,
+          defaultValue: 1,
+        });
+      }
+      if (!planCols.discount_percent) {
+        await qi.addColumn("service_plans", "discount_percent", {
+          type: Sequelize.DECIMAL(5, 2),
+          allowNull: false,
+          defaultValue: 0.00,
+        });
+      }
+    }
+    const subCols = await qi.describeTable("customer_subscriptions").catch(() => null);
+    if (subCols && !subCols.delivery_slots) {
+      await qi.addColumn("customer_subscriptions", "delivery_slots", {
+        type: Sequelize.JSON,
+        allowNull: true,
+      });
+    }
+    const delivCols = await qi.describeTable("subscription_deliveries").catch(() => null);
+    if (delivCols && !delivCols.delivery_slot) {
+      await qi.addColumn("subscription_deliveries", "delivery_slot", {
+        type: Sequelize.STRING(50),
+        allowNull: true,
+      });
+    }
+  } catch (err) {
+    // Ignore error if already migrated or during fresh sync
+  }
+};
+
+db.ensureSubscriptionEnhancements = ensureSubscriptionEnhancements;
 
 module.exports = db;

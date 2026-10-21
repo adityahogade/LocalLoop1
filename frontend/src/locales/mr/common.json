@@ -1,0 +1,22 @@
+{
+  "app_name": "सर्व्हिसहब (ServiceHub)",
+  "login": "लॉगिन करा",
+  "signup": "साइन अप करा",
+  "logout": "लॉगआउट",
+  "email": "ईमेल पत्ता",
+  "password": "पासवर्ड",
+  "phone": "फोन नंबर",
+  "full_name": "पूर्ण नाव",
+  "submit": "सादर करा",
+  "cancel": "रद्द करा",
+  "loading": "लोड होत आहे...",
+  "save": "जतन करा",
+  "error": "त्रुटी",
+  "success": "यश",
+  "dashboard": "डॅशबोर्ड",
+  "profile": "प्रोफाईल",
+  "actions": "कृती",
+  "status": "स्थिती",
+  "not_found": "पृष्ठ आढळले नाही",
+  "unauthorized": "अनधिकृत प्रवेश"
+}

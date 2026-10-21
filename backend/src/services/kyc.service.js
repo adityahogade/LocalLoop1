@@ -1,6 +1,11 @@
+const path = require("path");
+const fs = require("fs");
 const { sequelize } = require("../config/database");
-const { hasValidSignature } = require("../midleware/kycUpload");
+const { hasValidSignature, uploadDir } = require("../midleware/kycUpload");
 const { Notification, AuditLog } = require("../models");
+const AppError = require("../utils/AppError");
+const { generateDocumentToken } = require("../utils/jwt");
+const env = require("../config/env");
 
 /*
 |--------------------------------------------------------------------------
@@ -165,7 +170,14 @@ const getProviderDocuments = async (providerId) => {
     }
   );
 
-  return documents;
+  return documents.map((doc) => {
+    const filename = doc.file_url ? doc.file_url.split("/").pop().split("?")[0] : null;
+    return {
+      ...doc,
+      filename,
+      document_url: filename ? `/private-uploads/kyc/${filename}` : null,
+    };
+  });
 };
 
 /*
@@ -356,9 +368,175 @@ const reviewDocument = async (
   return getDocumentById(documentId);
 };
 
+/*
+|--------------------------------------------------------------------------
+| Generate Short-Lived KYC Document View Token & URL
+|--------------------------------------------------------------------------
+*/
+const createDocumentViewToken = async (user, rawFilename, host = null, protocol = "http") => {
+  if (!rawFilename || typeof rawFilename !== "string") {
+    throw new AppError("Invalid filename requested", 400, "INVALID_FILENAME");
+  }
+
+  const cleanFilename = path.basename(decodeURIComponent(rawFilename).split("?")[0].trim());
+
+  if (!cleanFilename || cleanFilename.includes("..") || cleanFilename.includes("/") || cleanFilename.includes("\\")) {
+    throw new AppError("Invalid filename requested", 400, "INVALID_FILENAME");
+  }
+
+  // Look up KYC document in DB
+  const [docRows] = await sequelize.query(
+    `
+      SELECT id, provider_id, document_type, file_url, status
+      FROM kyc_documents
+      WHERE file_url LIKE :pattern
+      ORDER BY id DESC
+      LIMIT 1
+    `,
+    {
+      replacements: {
+        pattern: `%${cleanFilename}%`,
+      },
+    }
+  );
+
+  const kycDoc = docRows.length > 0 ? docRows[0] : null;
+
+  // Authorization check
+  if (Number(user.roleId) === 1) {
+    // Admin authorized to view all documents
+  } else if (Number(user.roleId) === 3) {
+    const [providers] = await sequelize.query(
+      "SELECT id FROM providers WHERE user_id = :userId LIMIT 1",
+      { replacements: { userId: user.id } }
+    );
+    if (!providers.length) {
+      throw new AppError("Provider profile not found", 403, "FORBIDDEN");
+    }
+    const providerId = providers[0].id;
+
+    if (!kycDoc || kycDoc.provider_id !== providerId) {
+      throw new AppError("You are not authorized to view this KYC document", 403, "FORBIDDEN");
+    }
+  } else {
+    throw new AppError("Unauthorized access to KYC documents", 403, "FORBIDDEN");
+  }
+
+  const token = generateDocumentToken({
+    userId: user.id,
+    roleId: user.roleId,
+    role: user.role || (user.roleId === 1 ? "admin" : "provider"),
+    docFilename: cleanFilename,
+  }, "15m");
+
+  const baseUrl = env.appUrl || (host ? `${protocol}://${host}` : `http://localhost:${env.port}`);
+  const serverBase = baseUrl.replace(/\/api\/?$/, "");
+  const viewUrl = `${serverBase}/private-uploads/kyc/${cleanFilename}?token=${token}`;
+
+  return {
+    token,
+    filename: cleanFilename,
+    viewUrl,
+    expiresIn: 900,
+  };
+};
+
+/*
+|--------------------------------------------------------------------------
+| Get KYC Document File For Secure Download/Viewing
+|--------------------------------------------------------------------------
+*/
+const getKycDocumentFile = async (user, rawFilename) => {
+  if (!rawFilename || typeof rawFilename !== "string") {
+    throw new AppError("Invalid filename requested", 400, "INVALID_FILENAME");
+  }
+
+  // Remove query string if any and get basename
+  const cleanFilename = path.basename(decodeURIComponent(rawFilename).split("?")[0].trim());
+
+  if (!cleanFilename || cleanFilename.includes("..") || cleanFilename.includes("/") || cleanFilename.includes("\\")) {
+    throw new AppError("Invalid filename requested", 400, "INVALID_FILENAME");
+  }
+
+  const ext = path.extname(cleanFilename).toLowerCase();
+  const allowedExtensions = [".png", ".jpg", ".jpeg", ".pdf"];
+  if (!allowedExtensions.includes(ext)) {
+    throw new AppError("Unsupported file type", 400, "INVALID_FILE_TYPE");
+  }
+
+  // If request used a dedicated document token, verify document binding
+  if (user.docTokenType === "kyc_doc_access" && user.docFilename && user.docFilename !== cleanFilename) {
+    throw new AppError("You are not authorized to view this document with this token", 403, "FORBIDDEN");
+  }
+
+  // Look up KYC document in DB
+  const [docRows] = await sequelize.query(
+    `
+      SELECT id, provider_id, document_type, file_url, status
+      FROM kyc_documents
+      WHERE file_url LIKE :pattern
+      ORDER BY id DESC
+      LIMIT 1
+    `,
+    {
+      replacements: {
+        pattern: `%${cleanFilename}%`,
+      },
+    }
+  );
+
+  const kycDoc = docRows.length > 0 ? docRows[0] : null;
+
+  // Authorization check
+  if (Number(user.roleId) === 1) {
+    // Admin authorized to view all KYC documents
+  } else if (Number(user.roleId) === 3) {
+    // Provider authorized only to view own KYC documents
+    const [providers] = await sequelize.query(
+      "SELECT id FROM providers WHERE user_id = :userId LIMIT 1",
+      { replacements: { userId: user.id } }
+    );
+    if (!providers.length) {
+      throw new AppError("Provider profile not found", 403, "FORBIDDEN");
+    }
+    const providerId = providers[0].id;
+
+    if (!kycDoc || kycDoc.provider_id !== providerId) {
+      throw new AppError("You are not authorized to view this KYC document", 403, "FORBIDDEN");
+    }
+  } else {
+    // Customer or any other unauthorized role
+    throw new AppError("Unauthorized access to KYC documents", 403, "FORBIDDEN");
+  }
+
+  // Resolve file safely in uploadDir
+  const targetFilePath = path.resolve(uploadDir, cleanFilename);
+
+  if (!targetFilePath.startsWith(uploadDir)) {
+    throw new AppError("Invalid file path", 400, "INVALID_FILE_PATH");
+  }
+
+  if (!fs.existsSync(targetFilePath)) {
+    throw new AppError("KYC document file not found", 404, "KYC_FILE_NOT_FOUND");
+  }
+
+  let mimeType = "application/octet-stream";
+  if (ext === ".png") mimeType = "image/png";
+  else if (ext === ".jpg" || ext === ".jpeg") mimeType = "image/jpeg";
+  else if (ext === ".pdf") mimeType = "application/pdf";
+
+  return {
+    filePath: targetFilePath,
+    filename: cleanFilename,
+    mimeType,
+  };
+};
+
 module.exports = {
   submitDocument,
   getProviderDocuments,
   getDocumentById,
   reviewDocument,
+  getKycDocumentFile,
+  createDocumentViewToken,
 };

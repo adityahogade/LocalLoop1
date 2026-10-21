@@ -1,77 +1,66 @@
 const dotenv = require("dotenv");
-const fs = require("fs");
 const path = require("path");
 
 dotenv.config({
-  path: path.resolve(__dirname, "../.env"),
+  path: path.resolve(__dirname, "../../.env"),
 });
 
-const caPath = path.resolve(
-  __dirname,
-  "../src/config/../../cert/ca (1).pem"
-);
+// --------------------------------------------------
+// CA Certificate from Environment Variable
+// --------------------------------------------------
+
+const caCertificate = process.DB_SSL_CA
+  ? process.env.DB_CA_CERT.replace(/\\n/g, "\n")
+  : null;
+
+// --------------------------------------------------
+// SSL Configuration
+// --------------------------------------------------
+
+const sslConfig = caCertificate
+  ? {
+      require: true,
+      rejectUnauthorized: true,
+      ca: caCertificate,
+    }
+  : false;
+
+// --------------------------------------------------
+// Common Database Configuration
+// --------------------------------------------------
+
+const databaseConfig = {
+  username: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT || 3306),
+  dialect: "mysql",
+
+  dialectOptions: {
+    ssl: sslConfig,
+  },
+
+  timezone: "+05:30",
+};
+
+// --------------------------------------------------
+// Sequelize Environments
+// --------------------------------------------------
 
 module.exports = {
   development: {
-    username: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    host: process.env.DB_HOST,
-    port: Number(process.env.DB_PORT),
-    dialect: "mysql",
-
-    dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: true,
-        ca: fs.readFileSync(caPath),
-      },
-    },
-
-    timezone: "+05:30",
-
+    ...databaseConfig,
     logging: console.log,
   },
 
   test: {
-    username: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    host: process.env.DB_HOST,
-    port: Number(process.env.DB_PORT),
-    dialect: "mysql",
-
-    dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: true,
-        ca: fs.readFileSync(caPath),
-      },
-    },
-
-    timezone: "+05:30",
-
+    ...databaseConfig,
     logging: false,
   },
 
   production: {
-    username: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    host: process.env.DB_HOST,
-    port: Number(process.env.DB_PORT),
-    dialect: "mysql",
-
-    dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: true,
-        ca: fs.readFileSync(caPath),
-      },
-    },
-
-    timezone: "+05:30",
-
+    ...databaseConfig,
     logging: false,
   },
 };

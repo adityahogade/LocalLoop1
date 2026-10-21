@@ -1,0 +1,22 @@
+{
+  "app_name": "ServiceHub",
+  "login": "Login",
+  "signup": "Sign Up",
+  "logout": "Logout",
+  "email": "Email Address",
+  "password": "Password",
+  "phone": "Phone Number",
+  "full_name": "Full Name",
+  "submit": "Submit",
+  "cancel": "Cancel",
+  "loading": "Loading...",
+  "save": "Save",
+  "error": "Error",
+  "success": "Success",
+  "dashboard": "Dashboard",
+  "profile": "Profile",
+  "actions": "Actions",
+  "status": "Status",
+  "not_found": "Page Not Found",
+  "unauthorized": "Unauthorized Access"
+}

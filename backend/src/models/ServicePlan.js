@@ -38,6 +38,18 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
       },
 
+      deliveries_per_day: {
+        type: DataTypes.SMALLINT.UNSIGNED,
+        allowNull: false,
+        defaultValue: 1,
+      },
+
+      discount_percent: {
+        type: DataTypes.DECIMAL(5, 2),
+        allowNull: false,
+        defaultValue: 0.00,
+      },
+
       is_active: {
         type: DataTypes.BOOLEAN,
         allowNull: false,

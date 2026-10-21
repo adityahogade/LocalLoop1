@@ -52,6 +52,11 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
       },
 
+      delivery_slots: {
+        type: DataTypes.JSON,
+        allowNull: true,
+      },
+
       start_date: {
         type: DataTypes.DATEONLY,
         allowNull: false,

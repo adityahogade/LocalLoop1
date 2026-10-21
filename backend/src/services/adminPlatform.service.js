@@ -83,4 +83,272 @@ const reportRows = async (family, query = {}) => {
 	if (family === "expenses") return ProviderExpense.findAll({ attributes: ["category", [sequelize.fn("SUM", sequelize.col("amount")), "amount"]], where: dateWhere(query, "expense_date"), group: ["category"], raw: true });
 	throw new AppError("Report family not found", 404, "REPORT_NOT_FOUND");
 };
-module.exports = { listCategories, createCategory, updateCategory, deleteCategory, stats, listServices, moderateService, listServiceAreas, updateServiceArea, reports, listAuditLogs, listCommissionRules, createCommissionRule, updateCommissionRule, monitoring, reportRows };
+const listPayments = async (query = {}) => {
+  const where = { ...dateWhere(query) };
+  if (query.status && query.status !== "all") {
+    where.status = query.status;
+  }
+
+  const allPayments = await Payment.findAll({
+    where,
+    order: [["created_at", "DESC"], ["id", "DESC"]]
+  });
+
+  const detailedPayments = [];
+
+  for (const p of allPayments) {
+    let customerName = "Customer";
+    let customerEmail = "";
+    let customerPhone = "";
+    let providerId = null;
+    let providerName = "Provider";
+    let providerBusiness = "Provider Store";
+    let providerEmail = "";
+    let providerPhone = "";
+    let serviceId = null;
+    let serviceName = "Service";
+    let serviceType = p.reference_type === "order" ? "one_time" : "subscription";
+    let planFrequency = "One-Time";
+    let quantity = 1;
+    let unit = "unit";
+    let subscriptionId = null;
+    let orderNumber = null;
+    let baseProviderPrice = 0;
+
+    // 1. Fetch Customer Info
+    if (p.customer_id) {
+      try {
+        const customer = await Customer.findByPk(p.customer_id, {
+          include: [{ model: User, as: "user", attributes: ["full_name", "email", "phone"] }]
+        });
+        if (customer?.user) {
+          customerName = customer.user.full_name || "Customer";
+          customerEmail = customer.user.email || "";
+          customerPhone = customer.user.phone || "";
+        }
+      } catch (err) {}
+    }
+
+    // 2. Fetch Reference Info (SubscriptionPayment or Order)
+    if (p.reference_type === "subscription_payment" && p.reference_id) {
+      try {
+        const { ServicePlan } = require("../models");
+        const subPayment = await require("../models").SubscriptionPayment.findByPk(p.reference_id, {
+          include: [{
+            model: CustomerSubscription,
+            as: "subscription",
+            include: [
+              { model: Service, as: "service", attributes: ["id", "name", "type", "unit", "base_price"] },
+              { model: ServicePlan, as: "servicePlan", attributes: ["id", "frequency", "price"] },
+              { model: Provider, as: "provider", include: [{ model: User, as: "user", attributes: ["full_name", "email", "phone"] }] }
+            ]
+          }]
+        });
+
+        if (subPayment?.subscription) {
+          const sub = subPayment.subscription;
+          subscriptionId = sub.id;
+          quantity = Number(sub.quantity || 1);
+          if (sub.service) {
+            serviceId = sub.service.id;
+            serviceName = sub.service.name;
+            serviceType = sub.service.type || "subscription";
+            unit = sub.service.unit || "unit";
+          }
+          if (sub.servicePlan) {
+            planFrequency = sub.servicePlan.frequency || "monthly";
+            baseProviderPrice = Number(sub.servicePlan.price || 0) * quantity;
+          } else if (sub.service) {
+            baseProviderPrice = Number(sub.service.base_price || 0) * quantity;
+          }
+          if (sub.provider) {
+            providerId = sub.provider.id;
+            providerBusiness = sub.provider.business_name || "Provider Store";
+            providerName = sub.provider.user?.full_name || "Provider";
+            providerEmail = sub.provider.user?.email || "";
+            providerPhone = sub.provider.user?.phone || "";
+          }
+        }
+      } catch (err) {}
+    } else if (p.reference_type === "order" && p.reference_id) {
+      try {
+        const order = await Order.findByPk(p.reference_id, {
+          include: [
+            { model: Provider, as: "provider", include: [{ model: User, as: "user", attributes: ["full_name", "email", "phone"] }] },
+            { model: require("../models").OrderItem, as: "items", include: [{ model: Service, as: "service" }] }
+          ]
+        });
+
+        if (order) {
+          orderNumber = order.order_number || String(order.id);
+          baseProviderPrice = Number(order.subtotal || 0);
+          quantity = Number(order.items?.[0]?.quantity || 1);
+          if (order.items?.[0]?.service) {
+            serviceId = order.items[0].service.id;
+            serviceName = order.items[0].service.name;
+            serviceType = "one_time";
+            unit = order.items[0].service.unit || "unit";
+          }
+          if (order.provider) {
+            providerId = order.provider.id;
+            providerBusiness = order.provider.business_name || "Provider Store";
+            providerName = order.provider.user?.full_name || "Provider";
+            providerEmail = order.provider.user?.email || "";
+            providerPhone = order.provider.user?.phone || "";
+          }
+        }
+      } catch (err) {}
+    }
+
+    // 3. Resolve ProviderEarning and Settlement Status
+    let commissionPercent = 10;
+    let commissionAmount = 0;
+    let providerAmount = baseProviderPrice || Number(p.amount);
+    let customerPaid = Number(p.amount || 0);
+    let settlementStatus = p.status === "paid" ? "PENDING" : "NOT_ELIGIBLE";
+    let settlementId = null;
+    let settlementDate = null;
+    let payoutReference = null;
+
+    try {
+      let earning = await ProviderEarning.findOne({
+        where: { payment_id: p.id }
+      });
+
+      if (!earning && p.status === "paid") {
+        try {
+          earning = await require("./commission.service").recordEarningForPayment(p);
+        } catch (e) {}
+      }
+
+      if (earning) {
+        commissionPercent = Number(earning.commission_rate_applied || 10);
+        commissionAmount = Number(earning.commission_amount || 0);
+        providerAmount = Number(earning.net_earning || 0);
+        customerPaid = Number(earning.gross_amount || p.amount);
+
+        if (earning.settlement_id) {
+          settlementStatus = "PAID";
+          settlementId = earning.settlement_id;
+          const settlement = await ProviderSettlement.findByPk(earning.settlement_id);
+          if (settlement) {
+            settlementDate = settlement.processed_at;
+            payoutReference = settlement.payout_reference;
+          }
+        } else {
+          settlementStatus = "PENDING";
+        }
+      } else {
+        if (p.status === "paid") {
+          const { percent } = await require("./commission.service").commissionPercentFor({ serviceId, categoryId: null });
+          commissionPercent = percent || 10;
+          if (!baseProviderPrice) {
+            baseProviderPrice = Math.round((customerPaid / (1 + commissionPercent / 100)) * 100) / 100;
+          }
+          providerAmount = baseProviderPrice;
+          commissionAmount = Number((customerPaid - providerAmount).toFixed(2));
+          settlementStatus = "PENDING";
+        } else {
+          settlementStatus = "NOT_ELIGIBLE";
+          const { percent } = await require("./commission.service").commissionPercentFor({ serviceId, categoryId: null });
+          commissionPercent = percent || 10;
+          if (!baseProviderPrice) {
+            baseProviderPrice = Math.round((customerPaid / (1 + commissionPercent / 100)) * 100) / 100;
+          }
+          providerAmount = baseProviderPrice;
+          commissionAmount = Number((customerPaid - providerAmount).toFixed(2));
+        }
+      }
+    } catch (err) {}
+
+    detailedPayments.push({
+      id: p.id,
+      amount: customerPaid.toFixed(2),
+      currency: p.currency || "INR",
+      status: p.status,
+      method: p.method || "razorpay",
+      paid_at: p.paid_at,
+      created_at: p.created_at,
+      reference_type: p.reference_type,
+      reference_id: p.reference_id,
+      subscription_id: subscriptionId,
+      order_number: orderNumber,
+      customer: {
+        id: p.customer_id,
+        name: customerName,
+        email: customerEmail,
+        phone: customerPhone
+      },
+      provider: {
+        id: providerId,
+        name: providerName,
+        business_name: providerBusiness,
+        email: providerEmail,
+        phone: providerPhone
+      },
+      service: {
+        id: serviceId,
+        name: serviceName,
+        type: serviceType,
+        plan_frequency: planFrequency,
+        quantity,
+        unit
+      },
+      pricing: {
+        provider_amount: providerAmount.toFixed(2),
+        commission_percent: commissionPercent.toFixed(2),
+        commission_amount: commissionAmount.toFixed(2),
+        customer_paid: customerPaid.toFixed(2)
+      },
+      settlement: {
+        status: settlementStatus,
+        settlement_id: settlementId,
+        settlement_date: settlementDate,
+        payout_reference: payoutReference
+      }
+    });
+  }
+
+  // Calculate summary KPIs from actual payments
+  let totalPaymentsAmount = 0;
+  let customerRevenue = 0;
+  let providerPayable = 0;
+  let platformCommission = 0;
+  let settlementPending = 0;
+  let settlementPaid = 0;
+
+  for (const item of detailedPayments) {
+    const custPaid = Number(item.pricing.customer_paid || 0);
+    const provAmt = Number(item.pricing.provider_amount || 0);
+    const commAmt = Number(item.pricing.commission_amount || 0);
+
+    totalPaymentsAmount += custPaid;
+
+    if (item.status === "paid") {
+      customerRevenue += custPaid;
+      providerPayable += provAmt;
+      platformCommission += commAmt;
+
+      if (item.settlement.status === "PAID") {
+        settlementPaid += provAmt;
+      } else {
+        settlementPending += provAmt;
+      }
+    }
+  }
+
+  return {
+    summary: {
+      total_payments_count: detailedPayments.length,
+      total_payments_amount: totalPaymentsAmount.toFixed(2),
+      customer_revenue: customerRevenue.toFixed(2),
+      provider_payable: providerPayable.toFixed(2),
+      platform_commission: platformCommission.toFixed(2),
+      settlement_pending: settlementPending.toFixed(2),
+      settlement_paid: settlementPaid.toFixed(2)
+    },
+    payments: detailedPayments
+  };
+};
+
+module.exports = { listCategories, createCategory, updateCategory, deleteCategory, stats, listServices, moderateService, listServiceAreas, updateServiceArea, reports, listAuditLogs, listCommissionRules, createCommissionRule, updateCommissionRule, monitoring, reportRows, listPayments };

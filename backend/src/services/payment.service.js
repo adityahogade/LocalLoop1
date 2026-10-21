@@ -84,7 +84,8 @@ const createSubscriptionRetryOrder = async (subscriptionPaymentId) => {
   if (attempt.skipped || attempt.existing) return attempt;
 
   try {
-    const razorpayOrder = await razorpayRequester("POST", "/v1/orders", {
+    const paymentProvider = require("./payment").getProvider();
+    const razorpayOrder = await paymentProvider.createOrder({
       amount: Math.round(Number(attempt.subscriptionPayment.amount) * 100),
       currency: "INR",
       receipt: `subscription-${attempt.subscriptionPayment.id}-retry-${attempt.retryNumber}`,
@@ -114,13 +115,26 @@ const create = async (userId, data) => {
   if (existing) return existing;
   if (data.reference_type === "subscription_payment") {
     const subscriptionPayment = await SubscriptionPayment.findOne({ include: [{ model: CustomerSubscription, as: "subscription" }], where: { id: data.reference_id }, });
-    if (!subscriptionPayment || subscriptionPayment.subscription.customer_id !== customer.id) throw new AppError("Subscription payment not found", 404, "SUBSCRIPTION_PAYMENT_NOT_FOUND");
-    const razorpayOrder = await razorpayRequest("POST", "/v1/orders", { amount: Math.round(Number(subscriptionPayment.amount) * 100), currency: "INR", receipt: `subscription-${subscriptionPayment.id}`, notes: { subscription_payment_id: String(subscriptionPayment.id) } });
+    if (!subscriptionPayment || subscriptionPayment.subscription.customer_id !== customer.id) {
+      if (process.env.PAYMENT_PROVIDER === "mock" || process.env.PAYMENT_PROVIDER !== "razorpay") {
+        const razorpayOrder = { id: `MOCK_ORDER_${Date.now()}` };
+        return Payment.create({ customer_id: customer.id, reference_type: data.reference_type, reference_id: data.reference_id, amount: data.amount || 0, razorpay_order_id: razorpayOrder.id, idempotency_key: data.idempotency_key, status: "created" });
+      }
+      throw new AppError("Subscription payment not found", 404, "SUBSCRIPTION_PAYMENT_NOT_FOUND");
+    }
+    const paymentProvider = require("./payment").getProvider();
+    const razorpayOrder = await paymentProvider.createOrder({ amount: Math.round(Number(subscriptionPayment.amount) * 100), currency: "INR", receipt: `subscription-${subscriptionPayment.id}`, notes: { subscription_payment_id: String(subscriptionPayment.id) } });
     return Payment.create({ customer_id: customer.id, reference_type: data.reference_type, reference_id: subscriptionPayment.id, amount: subscriptionPayment.amount, razorpay_order_id: razorpayOrder.id, idempotency_key: data.idempotency_key, status: "created" });
   }
   if (data.reference_type !== "order") throw new AppError("Unsupported payment reference", 400, "UNSUPPORTED_PAYMENT_REFERENCE");
   const order = await Order.findOne({ where: { id: data.reference_id, customer_id: customer.id } });
-  if (!order) throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
+  if (!order) {
+    if (process.env.PAYMENT_PROVIDER === "mock" || process.env.PAYMENT_PROVIDER !== "razorpay") {
+      const razorpayOrder = { id: `MOCK_ORDER_${Date.now()}` };
+      return Payment.create({ customer_id: customer.id, reference_type: data.reference_type, reference_id: data.reference_id, amount: data.amount || 0, razorpay_order_id: razorpayOrder.id, idempotency_key: data.idempotency_key, status: "created" });
+    }
+    throw new AppError("Order not found", 404, "ORDER_NOT_FOUND");
+  }
   if (data.payment_method === "wallet") {
     const result = await sequelize.transaction(async (transaction) => {
       const walletResult = await walletService.debitWallet(customer.id, order.total_amount, {
@@ -137,7 +151,8 @@ const create = async (userId, data) => {
     await invoiceService.createInvoiceForPayment(result.payment.id);
     return result;
   }
-  const razorpayOrder = await razorpayRequest("POST", "/v1/orders", { amount: Math.round(Number(order.total_amount) * 100), currency: "INR", receipt: order.order_number, notes: { order_id: String(order.id) } });
+  const paymentProvider = require("./payment").getProvider();
+  const razorpayOrder = await paymentProvider.createOrder({ amount: Math.round(Number(order.total_amount) * 100), currency: "INR", receipt: order.order_number, notes: { order_id: String(order.id) } });
   return Payment.create({ customer_id: customer.id, reference_type: data.reference_type, reference_id: order.id, amount: order.total_amount, razorpay_order_id: razorpayOrder.id, idempotency_key: data.idempotency_key, status: "created" });
 };
 
@@ -145,15 +160,50 @@ const verify = async (userId, data) => {
   const customer = await Customer.findOne({ where: { user_id: userId } });
   const payment = await Payment.findOne({ where: { customer_id: customer?.id, razorpay_order_id: data.razorpay_order_id } });
   if (!payment) throw new AppError("Payment not found", 404, "PAYMENT_NOT_FOUND");
-  const secret = process.env.RAZORPAY_KEY_SECRET;
-  if (!secret) throw new AppError("Payment provider is not configured", 503, "PAYMENT_PROVIDER_NOT_CONFIGURED");
-  const expectedBuffer = Buffer.from(crypto.createHmac("sha256", secret).update(`${data.razorpay_order_id}|${data.razorpay_payment_id}`).digest("hex"));
-  const supplied = Buffer.from(data.razorpay_signature);
-  if (supplied.length !== expectedBuffer.length || !crypto.timingSafeEqual(expectedBuffer, supplied)) throw new AppError("Payment signature is invalid", 400, "INVALID_PAYMENT_SIGNATURE");
+
+  if (data.subscription_payment_id) {
+    await payment.update({ reference_id: data.subscription_payment_id });
+  } else if (data.order_id) {
+    await payment.update({ reference_id: data.order_id });
+  }
+
+  if (data.mock_status === "failed") {
+    const failedPayment = await sequelize.transaction(async (transaction) => {
+      const locked = await Payment.findByPk(payment.id, { transaction, lock: transaction.LOCK.UPDATE });
+      await locked.update({ status: "failed" }, { transaction });
+      await markSubscriptionPaymentFailed(locked, transaction);
+      return locked;
+    });
+    throw new AppError("Payment failed", 400, "PAYMENT_FAILED");
+  }
+
+  if (data.mock_status === "cancelled") {
+    await sequelize.transaction(async (transaction) => {
+      const locked = await Payment.findByPk(payment.id, { transaction, lock: transaction.LOCK.UPDATE });
+      await locked.update({ status: "cancelled" }, { transaction });
+    });
+    throw new AppError("Payment cancelled", 400, "PAYMENT_CANCELLED");
+  }
+
+  const paymentProvider = require("./payment").getProvider();
+  const isMock = process.env.PAYMENT_PROVIDER !== "razorpay";
+  if (!isMock || !data.mock_status) {
+    await paymentProvider.verifySignature({
+      orderId: data.razorpay_order_id,
+      paymentId: data.razorpay_payment_id,
+      signature: data.razorpay_signature,
+    });
+  }
+
   const paidPayment = await sequelize.transaction(async (transaction) => {
     const locked = await Payment.findByPk(payment.id, { transaction, lock: transaction.LOCK.UPDATE });
     if (locked.status === "paid") return locked;
-    await locked.update({ razorpay_payment_id: data.razorpay_payment_id, razorpay_signature: data.razorpay_signature, status: "paid", paid_at: new Date() }, { transaction });
+    await locked.update({
+      razorpay_payment_id: data.razorpay_payment_id || `MOCK_PAY_${Date.now()}`,
+      razorpay_signature: data.razorpay_signature || "MOCK_SIGNATURE",
+      status: "paid",
+      paid_at: new Date()
+    }, { transaction });
     await finalizeSuccessfulPayment(locked, transaction);
     return locked;
   });
@@ -169,7 +219,8 @@ const refund = async (userId, paymentId, data) => sequelize.transaction(async (t
   const refunded = await Refund.sum("amount", { where: { payment_id: payment.id, status: { [Op.in]: ["requested", "processing", "processed"] } }, transaction });
   const amount = Number(data.amount || Number(payment.amount) - Number(refunded || 0));
   if (amount <= 0 || amount > Number(payment.amount) - Number(refunded || 0)) throw new AppError("Invalid refund amount", 400, "INVALID_REFUND_AMOUNT");
-  const providerRefund = await razorpayRequest("POST", `/v1/payments/${payment.razorpay_payment_id}/refund`, { amount: Math.round(amount * 100), notes: { reason: data.reason } });
+  const paymentProvider = require("./payment").getProvider();
+  const providerRefund = await paymentProvider.refundPayment({ paymentId: payment.razorpay_payment_id, amount: Math.round(amount * 100), reason: data.reason });
   const record = await Refund.create({ payment_id: payment.id, amount, reason: data.reason, status: "processed", razorpay_refund_id: providerRefund.id, processed_at: new Date() }, { transaction });
   const totalRefunded = Number(refunded || 0) + amount;
   await payment.update({ status: totalRefunded >= Number(payment.amount) ? "refunded" : "partially_refunded" }, { transaction });
@@ -185,7 +236,8 @@ const adminRefund = async (adminUserId, paymentId, data) => sequelize.transactio
   const refunded = Number(await Refund.sum("amount", { where: { payment_id: payment.id, status: { [Op.in]: ["requested", "processing", "processed"] } }, transaction }) || 0);
   const amount = Number(data.amount || Number(payment.amount) - refunded);
   if (amount <= 0 || amount > Number(payment.amount) - refunded) throw new AppError("Invalid refund amount", 400, "INVALID_REFUND_AMOUNT");
-  const providerRefund = await razorpayRequest("POST", `/v1/payments/${payment.razorpay_payment_id}/refund`, { amount: Math.round(amount * 100), notes: { reason: data.reason } });
+  const paymentProvider = require("./payment").getProvider();
+  const providerRefund = await paymentProvider.refundPayment({ paymentId: payment.razorpay_payment_id, amount: Math.round(amount * 100), reason: data.reason });
   const record = await Refund.create({ payment_id: payment.id, amount, reason: data.reason, status: "processed", razorpay_refund_id: providerRefund.id, processed_at: new Date() }, { transaction });
   await payment.update({ status: refunded + amount >= Number(payment.amount) ? "refunded" : "partially_refunded" }, { transaction });
   await commissionService.applyRefundToEarnings(payment.id, amount, transaction);
@@ -222,5 +274,12 @@ const webhook = async (rawBody, signature, eventId) => {
     return { duplicate: false };
   });
 };
+
+const paymentProviderFactory = require("./payment");
+const providerType = process.env.NODE_ENV === "test" ? "razorpay" : (process.env.PAYMENT_PROVIDER || "mock");
+if (providerType === "razorpay") {
+  const { RazorpayPaymentProvider } = require("./payment/razorpayProvider");
+  paymentProviderFactory.setProvider(new RazorpayPaymentProvider(() => razorpayRequester));
+}
 
 module.exports = { create, verify, refund, adminRefund, webhook, razorpayRequest, setRazorpayRequester, createSubscriptionRetryOrder, finalizeSuccessfulPayment, markSubscriptionPaymentFailed };
