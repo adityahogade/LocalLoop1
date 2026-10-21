@@ -4,6 +4,7 @@ import { providerApi } from '../../api/provider';
 import Skeleton from '../../components/common/Skeleton';
 import StatusBadge from '../../components/common/StatusBadge';
 import { FiSettings, FiCheckSquare, FiAlertCircle, FiPlus, FiTrash2, FiFileText, FiX, FiMapPin } from 'react-icons/fi';
+import { getFullFileUrl, viewKycDocument } from '../../utils/kycDocumentViewer';
 
 export default function ProviderOnboarding() {
   const { fetchProfile } = useOutletContext() || {};
@@ -94,16 +95,7 @@ export default function ProviderOnboarding() {
     );
   };
 
-  const getFullFileUrl = (url) => {
-    if (!url) return '#';
-    if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-    const serverBase = apiBase.replace(/\/api$/, '');
-    const cleanPath = url.startsWith('/') ? url.slice(1) : url;
-    const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-    const separator = cleanPath.includes('?') ? '&' : '?';
-    return token ? `${serverBase}/${cleanPath}${separator}token=${token}` : `${serverBase}/${cleanPath}`;
-  };
+
 
   const fetchOnboardingDetails = async () => {
     setLoading(true);
@@ -612,7 +604,16 @@ export default function ProviderOnboarding() {
                     <span className="capitalize font-extrabold text-slate-800 block text-xs">
                       {doc.document_type?.replace(/_/g, ' ')}
                     </span>
-                    <a href={getFullFileUrl(doc.file_url)} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-600 font-bold hover:underline">
+                    <a
+                      href={getFullFileUrl(doc.file_url)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        viewKycDocument(doc.file_url, 'provider');
+                      }}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-blue-600 font-bold hover:underline"
+                    >
                       View uploaded file
                     </a>
                     {doc.kyc_rejection_reason && (

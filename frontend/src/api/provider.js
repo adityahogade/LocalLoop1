@@ -12,6 +12,7 @@ export const providerApi = {
     },
   }),
   getKycDocuments: () => axiosClient.get('/providers/kyc'),
+  getKycViewToken: (filename) => axiosClient.get(`/providers/kyc/documents/${filename}/view-token`),
 
   // Bank Account
   getBankAccount: () => axiosClient.get('/providers/bank-account'),

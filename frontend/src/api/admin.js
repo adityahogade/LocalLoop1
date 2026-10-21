@@ -21,6 +21,7 @@ export const adminApi = {
 
   // KYC Approvals
   getPendingKyc: () => axiosClient.get('/admin/kyc'),
+  getKycViewToken: (filename) => axiosClient.get(`/admin/kyc/documents/${filename}/view-token`),
   reviewKyc: (id, status, rejection_reason = null) => {
     const body = { status };
     if (rejection_reason) {

@@ -502,6 +502,12 @@ app.use(
 */
 
 app.get(
+  "/api/kyc/documents/:filename/view-token",
+  authenticate,
+  kycController.getKycViewToken
+);
+
+app.get(
   "/private-uploads/kyc/:filename",
   authenticate,
   kycController.serveKycDocument

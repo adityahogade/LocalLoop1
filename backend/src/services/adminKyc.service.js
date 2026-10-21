@@ -33,7 +33,14 @@ const getPendingKycDocuments = async () => {
     `
   );
 
-  return documents;
+  return documents.map((doc) => {
+    const filename = doc.file_url ? doc.file_url.split("/").pop().split("?")[0] : null;
+    return {
+      ...doc,
+      filename,
+      document_url: filename ? `/private-uploads/kyc/${filename}` : null,
+    };
+  });
 };
 
 /*

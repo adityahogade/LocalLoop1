@@ -1,6 +1,22 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'https://localloop1-vhcl.onrender.com/api';
+// Centralized API Base URL Resolution:
+// 1. If VITE_API_BASE_URL is provided and not a localhost URL in production, use it.
+// 2. In production mode (e.g. deployed on Azure Static Web Apps), fall back to the deployed Render backend.
+// 3. In local development, fall back to http://localhost:5000/api.
+const rawApiBase = import.meta.env.VITE_API_BASE_URL;
+const isProd = import.meta.env.PROD;
+
+export const API_BASE_URL = (
+  rawApiBase && (!isProd || !rawApiBase.includes('localhost'))
+)
+  ? rawApiBase
+  : (isProd ? 'https://localloop1-vhcl.onrender.com/api' : 'http://localhost:5000/api');
+
+export const SERVER_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, '');
+
+export const getApiBaseUrl = () => API_BASE_URL;
+export const getServerBaseUrl = () => SERVER_BASE_URL;
 
 const axiosClient = axios.create({
   baseURL: API_BASE_URL,

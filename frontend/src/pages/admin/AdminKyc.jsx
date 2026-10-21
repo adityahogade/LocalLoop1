@@ -4,6 +4,7 @@ import Skeleton from '../../components/common/Skeleton';
 import StatusBadge from '../../components/common/StatusBadge';
 import EmptyState from '../../components/common/EmptyState';
 import { FiCheckCircle, FiXCircle, FiEye } from 'react-icons/fi';
+import { getFullFileUrl, viewKycDocument } from '../../utils/kycDocumentViewer';
 
 export default function AdminKyc() {
   const [docs, setDocs] = useState([]);
@@ -15,17 +16,6 @@ export default function AdminKyc() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
-
-  const getFullFileUrl = (url) => {
-    if (!url) return '#';
-    if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-    const serverBase = apiBase.replace(/\/api$/, '');
-    const cleanPath = url.startsWith('/') ? url.slice(1) : url;
-    const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
-    const separator = cleanPath.includes('?') ? '&' : '?';
-    return token ? `${serverBase}/${cleanPath}${separator}token=${token}` : `${serverBase}/${cleanPath}`;
-  };
 
   const fetchPendingDocs = async () => {
     setLoading(true);
@@ -52,61 +42,71 @@ export default function AdminKyc() {
     try {
       const res = await adminApi.reviewKyc(id, 'approved');
       if (res?.success) {
-        alert('Document approved!');
-        fetchPendingDocs();
+        setDocs((prev) => prev.filter((d) => d.id !== id));
       }
     } catch (err) {
-      alert(err.message || 'Failed to approve document.');
+      alert(err.message || 'Failed to approve KYC');
     }
   };
 
   const handleRejectSubmit = async (e) => {
     e.preventDefault();
-    if (!rejectionReason.trim()) return;
-
+    if (!selectedDoc) return;
     setSubmittingReview(true);
     try {
       const res = await adminApi.reviewKyc(selectedDoc.id, 'rejected', rejectionReason);
       if (res?.success) {
-        alert('Document rejected successfully.');
+        setDocs((prev) => prev.filter((d) => d.id !== selectedDoc.id));
         setRejectModalOpen(false);
         setRejectionReason('');
         setSelectedDoc(null);
-        fetchPendingDocs();
       }
     } catch (err) {
-      alert(err.message || 'Failed to reject document.');
+      alert(err.message || 'Failed to reject KYC');
     } finally {
       setSubmittingReview(false);
     }
   };
 
-  if (loading && docs.length === 0) return <Skeleton type="table" count={5} />;
-  if (error) return <div className="p-4 bg-red-50 text-red-700 rounded-lg">{error}</div>;
+  if (loading) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto space-y-4">
+        <Skeleton className="h-8 w-64 mb-6" />
+        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-20 w-full" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center border-b border-gray-100 pb-4">
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
+      <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-black text-gray-900">Pending KYC Submissions</h2>
-          <p className="text-xs text-gray-500 mt-1">Verify business licenses, bank proofs, and IDs submitted by providers.</p>
+          <p className="text-xs text-gray-500 font-medium">Verify legal documents uploaded by active platform vendors.</p>
         </div>
       </div>
+
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 text-red-700 text-sm font-semibold rounded-xl">
+          {error}
+        </div>
+      )}
 
       {docs.length === 0 ? (
         <EmptyState
           title="No pending KYC documents"
-          description="All provider documents have been reviewed. New submissions will appear here automatically."
+          description="All provider identity and compliance records have been reviewed."
         />
       ) : (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left text-gray-600">
-              <thead className="bg-gray-50 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">
+            <table className="w-full text-left text-xs text-gray-600">
+              <thead className="bg-gray-50 text-gray-500 font-bold uppercase text-[10px] tracking-wider border-b border-gray-100">
                 <tr>
-                  <th className="px-6 py-3">Provider Business</th>
+                  <th className="px-6 py-3">Provider / Business</th>
                   <th className="px-6 py-3">Document Type</th>
-                  <th className="px-6 py-3">File URL</th>
+                  <th className="px-6 py-3">File</th>
                   <th className="px-6 py-3">Uploaded Date</th>
                   <th className="px-6 py-3 text-right">Actions</th>
                 </tr>
@@ -121,6 +121,10 @@ export default function AdminKyc() {
                     <td className="px-6 py-4">
                       <a
                         href={getFullFileUrl(doc.file_url)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          viewKycDocument(doc.file_url, 'admin');
+                        }}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:underline flex items-center gap-1 font-bold text-xs"

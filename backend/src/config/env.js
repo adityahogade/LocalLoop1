@@ -29,6 +29,14 @@ const env = {
   clientUrl:
     process.env.CLIENT_URL || 'http://localhost:5173',
 
+  appUrl:
+    process.env.APP_URL ||
+    process.env.RENDER_EXTERNAL_URL ||
+    `http://localhost:${Number(process.env.PORT) || 5000}`,
+
+  kycUploadDir:
+    process.env.KYC_UPLOAD_DIR || null,
+
   database: {
     host: process.env.DB_HOST,
 
